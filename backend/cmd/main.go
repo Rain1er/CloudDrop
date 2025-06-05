@@ -1,24 +1,23 @@
 package main
 
 import (
-	"clouddrop/internal/api"
-	"clouddrop/internal/config"
-	"clouddrop/internal/database"
+	config2 "clouddrop/config"
+	"clouddrop/routes"
 	"log"
 )
 
 func main() {
 	// 1. 初始化配置
-	cfg := config.New()
+	cfg := config2.New()
 
 	// 2. 初始化数据库实例
-	db, err := database.Initialize(cfg.Database.DSN)
+	db, err := config2.Initialize(cfg.Database.DSN)
 	if err != nil {
 		log.Fatal("Failed to initialize database:", err)
 	}
 
 	// 3. 传入配置与数据库实例，进行初始化路由
-	router := api.SetupRouter(cfg, db)
+	router := routes.SetupRouter(cfg, db)
 
 	// 4. 启动服务器
 	log.Printf("CloudDrop server starting on port %s", cfg.Server.Port)

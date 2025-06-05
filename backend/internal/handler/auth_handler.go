@@ -1,8 +1,8 @@
-package handlers
+package handler
 
 import (
-	"clouddrop/internal/config"
-	"clouddrop/internal/models"
+	"clouddrop/config"
+	"clouddrop/internal/model"
 	"net/http"
 	"time"
 
@@ -51,7 +51,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// 查询用户
-	var user models.User
+	var user model.User
 	if result := h.db.Where("username = ?", req.Username).First(&user); result.Error != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
 		return

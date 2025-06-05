@@ -1,4 +1,4 @@
-package models
+package model
 
 import (
 	"time"
@@ -14,18 +14,4 @@ type User struct {
 	Role      string     `json:"role" gorm:"default:user"`
 	IsActive  bool       `json:"is_active" gorm:"default:true"`
 	LastLogin *time.Time `json:"last_login"`
-}
-
-// Connection WebShell连接记录模型
-type Connection struct {
-	ID        int       `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Name      string    `json:"name"`
-	URL       string    `json:"url"`
-	Password  string    `json:"password"`
-	Type      string    `json:"type"`
-	Encode    string    `json:"encode"`
-	Status    string    `json:"status"`
-	Note      string    `json:"note"`
 }
