@@ -10,7 +10,7 @@ func main() {
 	// 1. 初始化配置
 	cfg := config2.New()
 
-	// 2. 初始化数据库实例
+	// 2. 初始化数据库实例，仅在第一次运行时会创建数据库文件
 	db, err := config2.Initialize(cfg.Database.DSN)
 	if err != nil {
 		log.Fatal("Failed to initialize database:", err)

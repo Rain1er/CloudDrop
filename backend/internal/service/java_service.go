@@ -5,13 +5,13 @@ import (
 	"strings"
 )
 
-func (s *PHPShell) GetShellType() string {
-	return "php"
+func (s *JavaShell) GetShellType() string {
+	return "java"
 }
 
 // GetCurrentDirectory retrieves the current directory from the PHP shell
-func (s *PHPShell) GetCurrentDirectory(url string, password string) (string, error) {
-	code := `echo getcwd();`
+func (s *JavaShell) GetCurrentDirectory(url string, password string) (string, error) {
+	code := ``
 	result, err := util.PostRequest(url, password, code)
 	if err != nil {
 		return "", err
@@ -21,15 +21,8 @@ func (s *PHPShell) GetCurrentDirectory(url string, password string) (string, err
 }
 
 // ListFiles lists all files in the current directory
-func (s *PHPShell) ListFiles(url string, password string) ([]string, error) {
-	code := `
-	$files = scandir(getcwd());
-	foreach ($files as $file) {
-		if ($file != "." && $file != "..") {
-			echo $file . "\n";
-		}
-	}
-	`
+func (s *JavaShell) ListFiles(url string, password string) ([]string, error) {
+	code := ``
 
 	result, err := util.PostRequest(url, password, code)
 	if err != nil {

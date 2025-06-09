@@ -4,8 +4,8 @@ import (
 	"time"
 )
 
-// User 用户模型
-type User struct {
+// Users 用户模型
+type Users struct {
 	ID        uint       `json:"id" gorm:"primarykey"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`

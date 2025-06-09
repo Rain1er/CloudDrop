@@ -34,7 +34,7 @@ func SetupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	webshellHandler := handler.NewWebShellHandler(cfg, db)
 
 	// API路由组
-	api := router.Group("/routes/v1")
+	api := router.Group("/api/v1")
 	{
 		// 认证相关路由组
 		auth := api.Group("/auth")
@@ -47,7 +47,10 @@ func SetupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		//webshells.Use(middleware2.AuthRequired(cfg.JWT.Secret)) // 鉴权
 		{
 			webshells.GET("", webshellHandler.List)
-			webshells.POST("", webshellHandler.Create)
+			webshells.POST("/create", webshellHandler.Create)
+			webshells.GET("/GetCurrentDirectory/:id", webshellHandler.GetCurrentDirectory)
+			webshells.GET("/ListFiles/:id", webshellHandler.ListFiles)
+
 			webshells.GET("/:id", webshellHandler.Get)
 			webshells.PUT("/:id", webshellHandler.Update)
 			webshells.DELETE("/:id", webshellHandler.Delete)

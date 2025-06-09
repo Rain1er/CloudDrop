@@ -51,7 +51,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// 查询用户
-	var user model.User
+	var user model.Users
 	if result := h.db.Where("username = ?", req.Username).First(&user); result.Error != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
 		return

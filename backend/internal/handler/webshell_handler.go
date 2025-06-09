@@ -2,7 +2,9 @@ package handler
 
 import (
 	"clouddrop/config"
+	"clouddrop/internal/model"
 	"clouddrop/internal/service"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -31,6 +33,22 @@ type CreateWebShellRequest struct {
 	Note     string `json:"note"`
 }
 
+func (h *WebShellHandler) Identify(shellType string) service.Shell {
+	var shell service.Shell // 声明接口类型的变量
+
+	if shellType == "php" {
+		shell = &service.PHPShell{}
+	} else if shellType == "java" {
+		shell = &service.JavaShell{}
+	} else if shellType == "c#" {
+		shell = &service.CSharpShell{}
+	} else if shellType == "asp" {
+		shell = &service.AspShell{}
+	}
+
+	return shell
+}
+
 // List 获取webshell列表
 func (h *WebShellHandler) List(c *gin.Context) {
 
@@ -38,7 +56,34 @@ func (h *WebShellHandler) List(c *gin.Context) {
 
 // Create 创建webshell
 func (h *WebShellHandler) Create(c *gin.Context) {
+	// 解析请求体到结构体，避免了单独获取每个参数，而且可以做数据验证，这里比Java的注解要容易理解，优雅
+	var req CreateWebShellRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
 
+	// 创建WebShell记录，这里为了简单起见，直接使用service.PHPShell结构体。不去调用构造方法
+	webshell := model.Web_shells{
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      req.Name,
+		URL:       req.URL,
+		Password:  req.Password,
+		Type:      req.Type,
+		Encode:    req.Encode,
+		Note:      req.Note,
+	}
+
+	// 插入数据到数据库
+	result := h.db.Table("web_shells").Create(&webshell)
+	if result.Error != nil {
+		c.JSON(500, gin.H{"error": "Failed to create WebShell", "message": result.Error.Error()})
+		return
+	}
+
+	// 返回成功信息
+	c.JSON(201, gin.H{"message": "WebShell created successfully", "data": webshell})
 }
 
 // Get 获取单个webshell
@@ -67,20 +112,39 @@ func (h *WebShellHandler) BatchTest(c *gin.Context) {
 
 // GetCurrentDirectory 获取当前目录
 func (h *WebShellHandler) GetCurrentDirectory(c *gin.Context) {
+	var currentDir string
+	var err error
 	// 从前端请求的ID查询数据库，获取WebShell的URL和密码
 	id := c.Param("id")
-	var webshell service.PHPShell
-	if result := h.db.First(&webshell, id); result.Error != nil {
+	var webshell model.Web_shells
+	if result := h.db.Where("id = ?", id).First(&webshell); result.Error != nil {
 		c.JSON(404, gin.H{"error": "WebShell not found"})
 		return
 	}
-	// 调用服务层获取当前目录
-	service := service.NewPHPShell(webshell.Name, webshell.URL, webshell.Password, webshell.Type, webshell.Encode, webshell.Note)
-	currentDir, err := service.GetCurrentDirectory(webshell.URL, webshell.Password)
+
+	// 使用接口的多态特性，调用服务层获取当前目录
+	shell := h.Identify(webshell.Type)
+	currentDir, err = shell.GetCurrentDirectory(webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to get current directory", "message": err.Error()})
 		return
 	}
 	// 返回当前目录
 	c.JSON(200, gin.H{"current_directory": currentDir})
+}
+
+func (h *WebShellHandler) ListFiles(c *gin.Context) {
+	id := c.Param("id")
+	var webshell model.Web_shells
+	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return
+	}
+	phpShell := &service.PHPShell{}
+	listFiles, err := phpShell.ListFiles(webshell.URL, webshell.Password)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to all files in the current directory", "message": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"current_directory_files": listFiles})
 }

@@ -7,9 +7,10 @@ import (
 	"net/url"
 )
 
-func PostRequest(shellURL string, password string, cmd string) (string, error) {
+func PostRequest(shellURL string, password string, code string) (string, error) {
+	// TODO 需要保存会话状态，保存第一次请求返回的cookie,如何做呢？感觉可以直接用map保存在内存中，反正不是很多
 	data := url.Values{}
-	data.Set(password, cmd)
+	data.Set(password, code)
 
 	resp, err := http.PostForm(shellURL, data)
 	if err != nil {
