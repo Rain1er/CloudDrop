@@ -36,13 +36,14 @@ type CreateWebShellRequest struct {
 func (h *WebShellHandler) Identify(shellType string) service.Shell {
 	var shell service.Shell // 声明接口类型的变量
 
-	if shellType == "php" {
+	switch shellType {
+	case "php":
 		shell = &service.PHPShell{}
-	} else if shellType == "java" {
+	case "java":
 		shell = &service.JavaShell{}
-	} else if shellType == "c#" {
+	case "c#":
 		shell = &service.CSharpShell{}
-	} else if shellType == "asp" {
+	case "asp":
 		shell = &service.AspShell{}
 	}
 
@@ -140,11 +141,30 @@ func (h *WebShellHandler) ListFiles(c *gin.Context) {
 		c.JSON(404, gin.H{"error": "WebShell not found"})
 		return
 	}
-	phpShell := &service.PHPShell{}
-	listFiles, err := phpShell.ListFiles(webshell.URL, webshell.Password)
+	shell := h.Identify(webshell.Type)
+	listFiles, err := shell.ListFiles(webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to all files in the current directory", "message": err.Error()})
 		return
 	}
 	c.JSON(200, gin.H{"current_directory_files": listFiles})
+}
+
+// ExecCommand 执行客户端发送的命令
+func (h *WebShellHandler) ExecCommand(c *gin.Context) {
+	id := c.Param("id")
+	command := c.PostForm("command")
+
+	var webshell model.Web_shells
+	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return
+	}
+	shell := h.Identify(webshell.Type)
+	info, err := shell.ExecCommand(webshell.URL, webshell.Password, command)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to ExecCommand", "message": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"command info": info})
 }

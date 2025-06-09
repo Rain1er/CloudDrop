@@ -32,3 +32,13 @@ func (s *CSharpShell) ListFiles(url string, password string) ([]string, error) {
 	files := strings.Split(strings.TrimSpace(result), "\n")
 	return files, nil
 }
+
+func (s *CSharpShell) ExecCommand(url string, password string, command string) (string, error) {
+	code := ``
+	result, err := util.PostRequest(url, password, code)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(result), nil
+}
