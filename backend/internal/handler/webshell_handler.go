@@ -23,8 +23,8 @@ func NewWebShellHandler(cfg *config.Config, db *gorm.DB) *WebShellHandler {
 	}
 }
 
-// 定义新的 CreateWebShellRequest 数据结构
-type CreateWebShellRequest struct {
+// 定义新的 WebShellRequest 数据结构
+type WebShellRequest struct {
 	Name     string `json:"name" binding:"required"`
 	URL      string `json:"url" binding:"required"`
 	Password string `json:"password" binding:"required"`
@@ -52,13 +52,19 @@ func (h *WebShellHandler) Identify(shellType string) service.Shell {
 
 // List 获取webshell列表
 func (h *WebShellHandler) List(c *gin.Context) {
+	var webshells []model.Web_shells
+	if result := h.db.Find(&webshells); result.Error != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve WebShells", "message": result.Error.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"results": webshells})
 
 }
 
 // Create 创建webshell
 func (h *WebShellHandler) Create(c *gin.Context) {
 	// 解析请求体到结构体，避免了单独获取每个参数，而且可以做数据验证，这里比Java的注解要容易理解，优雅
-	var req CreateWebShellRequest
+	var req WebShellRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
@@ -89,43 +95,122 @@ func (h *WebShellHandler) Create(c *gin.Context) {
 
 // Get 获取单个webshell
 func (h *WebShellHandler) Get(c *gin.Context) {
+	var webshell model.Web_shells
+	id := c.Param("id")
+	if result := h.db.Where("id = ?", id).First(&webshell); result.Error != nil {
+		c.JSON(404, gin.H{"error": "Webshell Not found"})
+		return
+	}
+
+	c.JSON(200, gin.H{"data": webshell})
 
 }
 
 // Update 更新webshell
 func (h *WebShellHandler) Update(c *gin.Context) {
-
-}
-
-// Delete 删除webshell
-func (h *WebShellHandler) Delete(c *gin.Context) {
-
-}
-
-// Test 测试单个WebShell有效性
-func (h *WebShellHandler) Test(c *gin.Context) {
-}
-
-// BatchTest 批量测试WebShell连接
-func (h *WebShellHandler) BatchTest(c *gin.Context) {
-
-}
-
-// GetCurrentDirectory 获取当前目录
-func (h *WebShellHandler) GetCurrentDirectory(c *gin.Context) {
-	var currentDir string
-	var err error
-	// 从前端请求的ID查询数据库，获取WebShell的URL和密码
 	id := c.Param("id")
+	var req WebShellRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 在更新之前先要查询该shell是否存在
 	var webshell model.Web_shells
 	if result := h.db.Where("id = ?", id).First(&webshell); result.Error != nil {
 		c.JSON(404, gin.H{"error": "WebShell not found"})
 		return
 	}
 
+	// Update only specific fields, keeping CreatedAt unchanged
+	updates := map[string]interface{}{
+		"updated_at": time.Now(),
+		"name":       req.Name,
+		"url":        req.URL,
+		"password":   req.Password,
+		"type":       req.Type,
+		"encode":     req.Encode,
+		"note":       req.Note,
+	}
+
+	if result := h.db.Model(&webshell).Updates(updates); result.Error != nil {
+		c.JSON(500, gin.H{"error": "Failed to update WebShell", "message": result.Error.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "WebShell updated successfully", "data": webshell})
+}
+
+// Delete 删除webshell
+func (h *WebShellHandler) Delete(c *gin.Context) {
+	id := c.Param("id")
+	// First check if the WebShell exists
+	var webshell model.Web_shells
+	if result := h.db.Where("id = ?", id).First(&webshell); result.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return
+	}
+
+	// Delete the WebShell
+	if result := h.db.Delete(&model.Web_shells{}, id); result.Error != nil {
+		c.JSON(500, gin.H{"error": "Failed to delete WebShell", "message": result.Error.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "WebShell deleted successfully"})
+}
+
+// Test 测试单个WebShell有效性
+func (h *WebShellHandler) Test(c *gin.Context) {
+	id := c.Param("id")
+	var webshell model.Web_shells
+	if result := h.db.Where("id = ?", id).First(&webshell); result.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return
+	}
+	shellHandler := h.Identify(webshell.Type)
+	_, err := shellHandler.GetCurrentDirectory(webshell.URL, webshell.Password)
+
+	c.JSON(200, gin.H{"results": err == nil})
+}
+
+// BatchTest 批量测试WebShell连接
+func (h *WebShellHandler) BatchTest(c *gin.Context) {
+	// Get all WebShells from database
+	var webshells []model.Web_shells
+	if result := h.db.Find(&webshells); result.Error != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve WebShells", "message": result.Error.Error()})
+		return
+	}
+
+	// Test each WebShell and collect results
+	results := make(map[int]bool)
+	for _, webshell := range webshells {
+		// Use the appropriate shell handler based on type
+		shellHandler := h.Identify(webshell.Type)
+		// Test connection and store result
+		_, err := shellHandler.GetCurrentDirectory(webshell.URL, webshell.Password)
+		results[webshell.ID] = err == nil
+	}
+
+	c.JSON(200, gin.H{"results": results})
+}
+
+// GetCurrentDirectory 获取当前目录
+func (h *WebShellHandler) GetCurrentDirectory(c *gin.Context) {
+	var currentDir string
+	var err error
+	var webshell model.Web_shells
+	// 从前端请求的ID查询数据库，获取WebShell的URL和密码
+	id := c.Param("id")
+	if result := h.db.Where("id = ?", id).First(&webshell); result.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return
+	}
+
 	// 使用接口的多态特性，调用服务层获取当前目录
-	shell := h.Identify(webshell.Type)
-	currentDir, err = shell.GetCurrentDirectory(webshell.URL, webshell.Password)
+	shellHandler := h.Identify(webshell.Type)
+	currentDir, err = shellHandler.GetCurrentDirectory(webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to get current directory", "message": err.Error()})
 		return
@@ -134,6 +219,7 @@ func (h *WebShellHandler) GetCurrentDirectory(c *gin.Context) {
 	c.JSON(200, gin.H{"current_directory": currentDir})
 }
 
+// ListFiles 列出目录下的文件
 func (h *WebShellHandler) ListFiles(c *gin.Context) {
 	id := c.Param("id")
 	var webshell model.Web_shells
@@ -141,8 +227,8 @@ func (h *WebShellHandler) ListFiles(c *gin.Context) {
 		c.JSON(404, gin.H{"error": "WebShell not found"})
 		return
 	}
-	shell := h.Identify(webshell.Type)
-	listFiles, err := shell.ListFiles(webshell.URL, webshell.Password)
+	shellHandler := h.Identify(webshell.Type)
+	listFiles, err := shellHandler.ListFiles(webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to all files in the current directory", "message": err.Error()})
 		return
@@ -160,8 +246,8 @@ func (h *WebShellHandler) ExecCommand(c *gin.Context) {
 		c.JSON(404, gin.H{"error": "WebShell not found"})
 		return
 	}
-	shell := h.Identify(webshell.Type)
-	info, err := shell.ExecCommand(webshell.URL, webshell.Password, command)
+	shellHandler := h.Identify(webshell.Type)
+	info, err := shellHandler.ExecCommand(webshell.URL, webshell.Password, command)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to ExecCommand", "message": err.Error()})
 		return
