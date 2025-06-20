@@ -5,14 +5,20 @@ import (
 	"strings"
 )
 
+var JavaSessions map[int]string
+
 func (s *JavaShell) GetShellType() string {
 	return "java"
 }
 
-// GetCurrentDirectory retrieves the current directory from the PHP shell
-func (s *JavaShell) GetCurrentDirectory(url string, password string) (string, error) {
+func (s *JavaShell) FreshSession(id int, url string, password string) (string, error) {
+	return "", nil
+}
+
+// BaseInfo
+func (s *JavaShell) BaseInfo(id int, url string, password string) (string, error) {
 	code := ``
-	result, err := util.PostRequest(url, password, code)
+	result, err := util.PostRequest(url, password, code, JavaSessions[id])
 	if err != nil {
 		return "", err
 	}
@@ -21,10 +27,10 @@ func (s *JavaShell) GetCurrentDirectory(url string, password string) (string, er
 }
 
 // ListFiles lists all files in the current directory
-func (s *JavaShell) ListFiles(url string, password string) ([]string, error) {
+func (s *JavaShell) ListFiles(id int, url string, password string) ([]string, error) {
 	code := ``
 
-	result, err := util.PostRequest(url, password, code)
+	result, err := util.PostRequest(url, password, code, JavaSessions[id])
 	if err != nil {
 		return nil, err
 	}
@@ -33,9 +39,9 @@ func (s *JavaShell) ListFiles(url string, password string) ([]string, error) {
 	return files, nil
 }
 
-func (s *JavaShell) ExecCommand(url string, password string, command string) (string, error) {
+func (s *JavaShell) ExecCommand(id int, url string, password string, command string) (string, error) {
 	code := ``
-	result, err := util.PostRequest(url, password, code)
+	result, err := util.PostRequest(url, password, code, JavaSessions[id])
 	if err != nil {
 		return "", err
 	}

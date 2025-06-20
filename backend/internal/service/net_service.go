@@ -5,14 +5,20 @@ import (
 	"strings"
 )
 
+var NetSessions map[int]string
+
 func (s *CSharpShell) GetShellType() string {
 	return "csharp"
 }
 
-// GetCurrentDirectory retrieves the current directory from the PHP shell
-func (s *CSharpShell) GetCurrentDirectory(url string, password string) (string, error) {
+func (s *CSharpShell) FreshSession(id int, url string, password string) (string, error) {
+	return "", nil
+}
+
+// BaseInfo
+func (s *CSharpShell) BaseInfo(id int, url string, password string) (string, error) {
 	code := ``
-	result, err := util.PostRequest(url, password, code)
+	result, err := util.PostRequest(url, password, code, NetSessions[id])
 	if err != nil {
 		return "", err
 	}
@@ -21,10 +27,10 @@ func (s *CSharpShell) GetCurrentDirectory(url string, password string) (string, 
 }
 
 // ListFiles lists all files in the current directory
-func (s *CSharpShell) ListFiles(url string, password string) ([]string, error) {
+func (s *CSharpShell) ListFiles(id int, url string, password string) ([]string, error) {
 	code := ``
 
-	result, err := util.PostRequest(url, password, code)
+	result, err := util.PostRequest(url, password, code, NetSessions[id])
 	if err != nil {
 		return nil, err
 	}
@@ -33,9 +39,9 @@ func (s *CSharpShell) ListFiles(url string, password string) ([]string, error) {
 	return files, nil
 }
 
-func (s *CSharpShell) ExecCommand(url string, password string, command string) (string, error) {
+func (s *CSharpShell) ExecCommand(id int, url string, password string, command string) (string, error) {
 	code := ``
-	result, err := util.PostRequest(url, password, code)
+	result, err := util.PostRequest(url, password, code, NetSessions[id])
 	if err != nil {
 		return "", err
 	}

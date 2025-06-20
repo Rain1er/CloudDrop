@@ -3,9 +3,10 @@ package service
 // Shell interface defines common methods for different shell types
 type Shell interface {
 	GetShellType() string
-	GetCurrentDirectory(url string, password string) (string, error)
-	ListFiles(url string, password string) ([]string, error)
-	ExecCommand(url string, password string, command string) (string, error)
+	FreshSession(id int, url string, password string) (string, error)
+	BaseInfo(id int, url string, password string) (string, error)
+	ListFiles(id int, url string, password string) ([]string, error)
+	ExecCommand(id int, url string, password string, command string) (string, error)
 }
 
 // PHPShell implements Shell interface for PHP

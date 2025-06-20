@@ -5,14 +5,20 @@ import (
 	"strings"
 )
 
+var AspSessions map[int]string
+
 func (s *AspShell) GetShellType() string {
 	return "asp"
 }
 
-// GetCurrentDirectory retrieves the current directory from the PHP shell
-func (s *AspShell) GetCurrentDirectory(url string, password string) (string, error) {
+func (s *AspShell) FreshSession(id int, url string, password string) (string, error) {
+	return "", nil
+}
+
+// BaseInfo
+func (s *AspShell) BaseInfo(id int, url string, password string) (string, error) {
 	code := ``
-	result, err := util.PostRequest(url, password, code)
+	result, err := util.PostRequest(url, password, code, AspSessions[id])
 	if err != nil {
 		return "", err
 	}
@@ -21,10 +27,10 @@ func (s *AspShell) GetCurrentDirectory(url string, password string) (string, err
 }
 
 // ListFiles lists all files in the current directory
-func (s *AspShell) ListFiles(url string, password string) ([]string, error) {
+func (s *AspShell) ListFiles(id int, url string, password string) ([]string, error) {
 	code := ``
 
-	result, err := util.PostRequest(url, password, code)
+	result, err := util.PostRequest(url, password, code, AspSessions[id])
 	if err != nil {
 		return nil, err
 	}
@@ -33,9 +39,9 @@ func (s *AspShell) ListFiles(url string, password string) ([]string, error) {
 	return files, nil
 }
 
-func (s *AspShell) ExecCommand(url string, password string, command string) (string, error) {
+func (s *AspShell) ExecCommand(id int, url string, password string, command string) (string, error) {
 	code := ``
-	result, err := util.PostRequest(url, password, code)
+	result, err := util.PostRequest(url, password, code, AspSessions[id])
 	if err != nil {
 		return "", err
 	}
