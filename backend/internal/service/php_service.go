@@ -29,7 +29,7 @@ func (s *PHPShell) FreshSession(id int, url string, password string) (string, er
 	session := PhpSessions[id] // if key not exist, it returns "" , bcz type is string
 	if session == "" {
 		PhpSessions[id], err = util.PostRequestWithoutSession(url, password, enCode)
-		return "FreshSession success", err
+		return "FreshSession success id : " + PhpSessions[id], err
 	}
 
 	enResult, err := util.PostRequest(url, password, enCode, session)
