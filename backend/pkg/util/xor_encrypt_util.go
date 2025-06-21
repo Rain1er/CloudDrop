@@ -27,11 +27,13 @@ func Decrypt(code string, password string) (DeCode string) {
 	md5Hash := md5.Sum([]byte(password))
 	key := hex.EncodeToString(md5Hash[:])[:16]
 
-	dncryptedCode := make([]byte, len(code))
-	copy(dncryptedCode, code)
+	decryptedCode := make([]byte, len(code))
+	copy(decryptedCode, code)
 
-	for i := range len(dncryptedCode) {
-		dncryptedCode[i] = code[i] ^ key[(i+1)&15]
+	// base64 decode and xor
+	decryptedCode, _ = base64.StdEncoding.DecodeString(string(decryptedCode))
+	for i := range len(decryptedCode) {
+		decryptedCode[i] = decryptedCode[i] ^ key[(i+1)&15]
 	}
-	return string(dncryptedCode)
+	return string(decryptedCode)
 }

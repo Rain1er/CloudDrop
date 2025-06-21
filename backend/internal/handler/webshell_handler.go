@@ -26,11 +26,11 @@ func NewWebShellHandler(cfg *config.Config, db *gorm.DB) *WebShellHandler {
 
 // 定义 WebShellRequest 数据结构
 type WebShellRequest struct {
-	Name     string `json:"name" 		binding:"required"`
-	URL      string `json:"url" 		binding:"required"`
-	Password string `json:"password" 	binding:"required"`
-	Type     string `json:"type" 		binding:"required"`
-	Encode   string `json:"encode" 		binding:"required"`
+	Name     string `json:"name" binding:"required"`
+	URL      string `json:"url" binding:"required"`
+	Password string `json:"password" binding:"required"`
+	Type     string `json:"type" binding:"required"`
+	Encode   string `json:"encode" binding:"required"`
 	Note     string `json:"note"`
 }
 
@@ -232,29 +232,30 @@ func (h *WebShellHandler) BaseInfo(c *gin.Context) {
 	c.JSON(200, gin.H{"info": info})
 }
 
-// ListFiles 列出目录下的文件
-func (h *WebShellHandler) ListFiles(c *gin.Context) {
+// FileList 列出目录下的文件
+func (h *WebShellHandler) FileList(c *gin.Context) {
 	id := c.Param("id")
 	intID, _ := strconv.Atoi(id)
+	path := c.PostForm("path")
 	var webshell model.Web_shells
 	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
 		c.JSON(404, gin.H{"error": "WebShell not found"})
 		return
 	}
 	shellHandler := h.GetType(webshell.Type)
-	listFiles, err := shellHandler.ListFiles(intID, webshell.URL, webshell.Password)
+	files, err := shellHandler.FileList(intID, path, webshell.URL, webshell.Password)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to all files in the current directory", "message": err.Error()})
+		c.JSON(500, gin.H{"error": "Failed to all files in the target directory", "message": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"current_directory_files": listFiles})
+	c.JSON(200, gin.H{"target_directory_files": files})
 }
 
 // ExecCommand 执行客户端发送的命令
 func (h *WebShellHandler) ExecCommand(c *gin.Context) {
 	id := c.Param("id")
-	command := c.PostForm("command")
 	intID, _ := strconv.Atoi(id)
+	command := c.PostForm("command")
 
 	var webshell model.Web_shells
 	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
@@ -262,7 +263,7 @@ func (h *WebShellHandler) ExecCommand(c *gin.Context) {
 		return
 	}
 	shellHandler := h.GetType(webshell.Type)
-	info, err := shellHandler.ExecCommand(intID, webshell.URL, webshell.Password, command)
+	info, err := shellHandler.ExecCommand(intID, command, webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to ExecCommand", "message": err.Error()})
 		return

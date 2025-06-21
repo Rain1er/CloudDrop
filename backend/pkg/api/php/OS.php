@@ -10,5 +10,5 @@ function encrypt($data,$key)
 	for($i=0;$i<strlen($data);$i++) {
     	$data[$i] = $data[$i]^$key[$i+1&15]; 
     }
-	return $data;
+	return base64_encode($data);
 }

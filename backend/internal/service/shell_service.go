@@ -5,8 +5,8 @@ type Shell interface {
 	GetShellType() string
 	FreshSession(id int, url string, password string) (string, error)
 	BaseInfo(id int, url string, password string) (string, error)
-	ListFiles(id int, url string, password string) ([]string, error)
-	ExecCommand(id int, url string, password string, command string) (string, error)
+	FileList(id int, path string, url string, password string) (string, error)
+	ExecCommand(id int, command string, url string, password string) (string, error)
 }
 
 // PHPShell implements Shell interface for PHP

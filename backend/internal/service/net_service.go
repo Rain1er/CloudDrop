@@ -26,20 +26,18 @@ func (s *CSharpShell) BaseInfo(id int, url string, password string) (string, err
 	return strings.TrimSpace(result), nil
 }
 
-// ListFiles lists all files in the current directory
-func (s *CSharpShell) ListFiles(id int, url string, password string) ([]string, error) {
+// FileList lists all files in the current directory
+func (s *CSharpShell) FileList(id int, path string, url string, password string) (string, error) {
 	code := ``
 
 	result, err := util.PostRequest(url, password, code, NetSessions[id])
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-
-	files := strings.Split(strings.TrimSpace(result), "\n")
-	return files, nil
+	return result, nil
 }
 
-func (s *CSharpShell) ExecCommand(id int, url string, password string, command string) (string, error) {
+func (s *CSharpShell) ExecCommand(id int, command string, url string, password string) (string, error) {
 	code := ``
 	result, err := util.PostRequest(url, password, code, NetSessions[id])
 	if err != nil {
