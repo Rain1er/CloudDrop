@@ -263,7 +263,8 @@ func (h *WebShellHandler) ExecCommand(c *gin.Context) {
 		return
 	}
 	shellHandler := h.GetType(webshell.Type)
-	info, err := shellHandler.ExecCommand(intID, command, webshell.URL, webshell.Password)
+	// Todo 单引号对于win可能会出错，需要在CMD.php中处理引号问题
+	info, err := shellHandler.ExecCommand(intID, "'"+command+"'", webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to ExecCommand", "message": err.Error()})
 		return

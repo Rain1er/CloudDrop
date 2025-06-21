@@ -15,7 +15,7 @@ func Encrypt(code string, password string) (EnCode string) {
 	copy(encryptedCode, code)
 
 	for i := range encryptedCode {
-		encryptedCode[i] = encryptedCode[i] ^ key[(i+1)&15]
+		encryptedCode[i] = encryptedCode[i] ^ key[(i+1)&15] // Key offset by one digit
 	}
 	// Base64 encode the encrypted code
 	encryptedBase64 := base64.StdEncoding.EncodeToString(encryptedCode)
@@ -33,7 +33,7 @@ func Decrypt(code string, password string) (DeCode string) {
 	// base64 decode and xor
 	decryptedCode, _ = base64.StdEncoding.DecodeString(string(decryptedCode))
 	for i := range len(decryptedCode) {
-		decryptedCode[i] = decryptedCode[i] ^ key[(i+1)&15]
+		decryptedCode[i] = decryptedCode[i] ^ key[(i+1)&15] // Key offset by one digit
 	}
 	return string(decryptedCode)
 }

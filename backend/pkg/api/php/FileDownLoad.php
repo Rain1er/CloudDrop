@@ -23,5 +23,4 @@ function main($path)
 		flush();
     }
     fclose($handle);
-   
 }
