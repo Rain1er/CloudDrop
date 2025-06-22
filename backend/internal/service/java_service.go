@@ -26,6 +26,16 @@ func (s *JavaShell) BaseInfo(id int, url string, password string) (string, error
 	return strings.TrimSpace(result), nil
 }
 
+func (s *JavaShell) ExecCommand(id int, command string, url string, password string) (string, error) {
+	code := ``
+	result, err := util.PostRequest(url, password, code, JavaSessions[id])
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(result), nil
+}
+
 // FileList lists all files in the current directory
 func (s *JavaShell) FileList(id int, path string, url string, password string) (string, error) {
 	code := ``
@@ -38,12 +48,13 @@ func (s *JavaShell) FileList(id int, path string, url string, password string) (
 	return result, nil
 }
 
-func (s *JavaShell) ExecCommand(id int, command string, url string, password string) (string, error) {
+func (s *JavaShell) FileShow(id int, path string, url string, password string) (string, error) {
 	code := ``
+
 	result, err := util.PostRequest(url, password, code, JavaSessions[id])
 	if err != nil {
 		return "", err
 	}
 
-	return strings.TrimSpace(result), nil
+	return result, nil
 }

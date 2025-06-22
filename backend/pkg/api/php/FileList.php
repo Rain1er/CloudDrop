@@ -1,7 +1,8 @@
 error_reporting(0);
 header('Content-Type: text/html; charset=UTF-8');
 
-function getSafeStr($str){
+function getSafeStr($str)
+{
     $s1 = iconv('utf-8','gbk//IGNORE',$str);
     $s0 = iconv('gbk','utf-8//IGNORE',$s1);
     if($s0 == $str){
@@ -10,15 +11,7 @@ function getSafeStr($str){
         return iconv('gbk','utf-8//IGNORE',$str);
     }
 }
-function getgbkStr($str){
-    $s0 = iconv('gbk','utf-8//IGNORE',$s1);
-    $s1 = iconv('utf-8','gbk//IGNORE',$str);
-    if($s1 == $str){
-        return $s1;
-    }else{
-        return iconv('utf-8','gbk//IGNORE',$str);
-    }
-}
+
 
 function main($path = "")
 {
@@ -36,7 +29,6 @@ function main($path = "")
 	}
     $currentPath=getcwd()."/";
 	$result=$driveList."\r\n".$currentPath."\r\n";
-	$path=getgbkStr($path);
     if($path == "") $path = getcwd()."/";
     $allFiles = scandir($path);
             foreach ($allFiles as $fileName) {

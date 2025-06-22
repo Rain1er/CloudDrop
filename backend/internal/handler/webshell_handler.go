@@ -97,7 +97,7 @@ func (h *WebShellHandler) Create(c *gin.Context) {
 // Get 获取单个webshell
 func (h *WebShellHandler) Get(c *gin.Context) {
 	var webshell model.Web_shells
-	id := c.Param("id")
+	id := c.Param("id") // GORM automatically processes into int
 	if result := h.db.Where("id = ?", id).First(&webshell); result.Error != nil {
 		c.JSON(404, gin.H{"error": "Webshell Not found"})
 		return
@@ -232,6 +232,27 @@ func (h *WebShellHandler) BaseInfo(c *gin.Context) {
 	c.JSON(200, gin.H{"info": info})
 }
 
+// ExecCommand 执行客户端发送的命令
+func (h *WebShellHandler) ExecCommand(c *gin.Context) {
+	id := c.Param("id")
+	intID, _ := strconv.Atoi(id)
+	command := c.PostForm("command")
+
+	var webshell model.Web_shells
+	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return
+	}
+	shellHandler := h.GetType(webshell.Type)
+	// Todo 单引号对于win可能会出错，需要在CMD.php中处理引号问题。直接在shellcode中用双引号包裹命令，已完成。
+	info, err := shellHandler.ExecCommand(intID, command, webshell.URL, webshell.Password)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to ExecCommand", "message": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"command info": info})
+}
+
 // FileList 列出目录下的文件
 func (h *WebShellHandler) FileList(c *gin.Context) {
 	id := c.Param("id")
@@ -248,26 +269,23 @@ func (h *WebShellHandler) FileList(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to all files in the target directory", "message": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"target_directory_files": files})
+	c.JSON(200, gin.H{"target_directory_content": files})
 }
 
-// ExecCommand 执行客户端发送的命令
-func (h *WebShellHandler) ExecCommand(c *gin.Context) {
+func (h *WebShellHandler) FileShow(c *gin.Context) {
 	id := c.Param("id")
 	intID, _ := strconv.Atoi(id)
-	command := c.PostForm("command")
-
+	path := c.PostForm("path")
 	var webshell model.Web_shells
 	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
 		c.JSON(404, gin.H{"error": "WebShell not found"})
 		return
 	}
 	shellHandler := h.GetType(webshell.Type)
-	// Todo 单引号对于win可能会出错，需要在CMD.php中处理引号问题
-	info, err := shellHandler.ExecCommand(intID, "'"+command+"'", webshell.URL, webshell.Password)
+	content, err := shellHandler.FileShow(intID, path, webshell.URL, webshell.Password)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to ExecCommand", "message": err.Error()})
+		c.JSON(500, gin.H{"error": "Failed to retrive target file content", "message": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"command info": info})
+	c.JSON(200, gin.H{"target_file_content": content})
 }

@@ -57,8 +57,10 @@ func SetupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			webshells.POST("/batch-test", webshellHandler.BatchTest)
 
 			webshells.GET("/BaseInfo/:id", webshellHandler.BaseInfo)
-			webshells.GET("/FileList/:id", webshellHandler.FileList)
 			webshells.POST("/ExecCommand/:id", webshellHandler.ExecCommand)
+
+			webshells.POST("/FileList/:id", webshellHandler.FileList)
+			webshells.POST("/FileShow/:id", webshellHandler.FileShow)
 
 		}
 	}
