@@ -190,7 +190,7 @@ function create($cmdPath)
 function encrypt($data,$key)
 {
 	for($i=0;$i<strlen($data);$i++) {
-    	$data[$i] = $data[$i]^$key[$i+1&15]; 
+    	$data[$i] = $data[$i]^$key[$i+5&15]; 
     }
 	return base64_encode($data);
 }

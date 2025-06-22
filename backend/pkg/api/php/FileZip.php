@@ -1,8 +1,6 @@
 error_reporting(0);
 header('Content-Type: text/html; charset=UTF-8');
 
-
-
 function main($srcPath = "",$toPath="")
 {
 	$fileList =explode(",",$srcPath);
@@ -44,4 +42,12 @@ function addFileToZip($cdic,$root,$path,$zip){
         }
     }
     @closedir($path);
+}
+
+function encrypt($data,$key)
+{
+	for($i=0;$i<strlen($data);$i++) {
+    	$data[$i] = $data[$i]^$key[$i+5&15]; 
+    }
+	return base64_encode($data);
 }

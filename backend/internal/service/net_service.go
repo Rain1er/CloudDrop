@@ -36,6 +36,15 @@ func (s *CSharpShell) ExecCommand(id int, command string, url string, password s
 	return strings.TrimSpace(result), nil
 }
 
+func (s *CSharpShell) ExecCode(id int, code string, url string, password string) (string, error) {
+	result, err := util.PostRequest(url, password, code, NetSessions[id])
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(result), nil
+}
+
 // FileList lists all files in the current directory
 func (s *CSharpShell) FileList(id int, path string, url string, password string) (string, error) {
 	code := ``

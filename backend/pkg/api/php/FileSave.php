@@ -7,7 +7,7 @@ function decode($sdata,$key)
 {
 	$data=base64_decode($sdata);
 	for($i=0;$i<strlen($data);$i++) {	
-    	$data[$i] = $data[$i]^$key[$i+1&15];
+    	$data[$i] = $data[$i]^$key[$i+5&15];
     }
 	return $data;
 }

@@ -233,6 +233,7 @@ func (h *WebShellHandler) BaseInfo(c *gin.Context) {
 }
 
 // ExecCommand 执行客户端发送的命令
+// Todo 遇到黑名单命令执行函数，自动寻找遗漏的地方，配合用户自定义代码执行功能使用
 func (h *WebShellHandler) ExecCommand(c *gin.Context) {
 	id := c.Param("id")
 	intID, _ := strconv.Atoi(id)
@@ -250,7 +251,27 @@ func (h *WebShellHandler) ExecCommand(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to ExecCommand", "message": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"command info": info})
+	c.JSON(200, gin.H{"info": info})
+}
+
+// ExecCode executes custom code sent by the client
+func (h *WebShellHandler) ExecCode(c *gin.Context) {
+	id := c.Param("id")
+	intID, _ := strconv.Atoi(id)
+	code := c.PostForm("code")
+
+	var webshell model.Web_shells
+	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return
+	}
+	shellHandler := h.GetType(webshell.Type)
+	info, err := shellHandler.ExecCode(intID, code, webshell.URL, webshell.Password)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to ExecCode", "message": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"info": info})
 }
 
 // FileList 列出目录下的文件

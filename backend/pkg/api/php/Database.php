@@ -129,7 +129,7 @@ function encrypt($data)
 {
 	$key=$_SESSION['k'];
 	for($i=0;$i<strlen($data);$i++) {
-    	$data[$i] = $data[$i]^$key[$i+1&15]; 
+    	$data[$i] = $data[$i]^$key[$i+5&15]; 
     }
 	return $data;
 }
@@ -137,7 +137,7 @@ function bencrypt($data)
 {
 	$key=$_SESSION['k'];
 	for($i=0;$i<strlen($data);$i++) {
-    	$data[$i] = $data[$i]^$key[$i+1&15]; 
+    	$data[$i] = $data[$i]^$key[$i+5&15]; 
     }
 	return base64_encode($data);
 }

