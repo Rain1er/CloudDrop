@@ -1,5 +1,5 @@
 error_reporting(1);
-header('Content-Type: text/html; charset=UTF-8');
+
 set_time_limit(0);
 ini_set('max_execution_time', '0');
 

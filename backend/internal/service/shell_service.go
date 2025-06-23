@@ -7,6 +7,11 @@ type Shell interface {
 	BaseInfo(id int, url string, password string) (string, error)
 	ExecCommand(id int, command string, url string, password string) (string, error)
 	ExecCode(id int, code string, url string, password string) (string, error)
+	ExecSql(id int, driver, host, port, user, pass, database, sql, option, encoding, url, password string) (string, error)
+
+	FileZip(id int, srcPath string, toPath string, url string, password string) (string, error)
+	FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error)
+
 	FileList(id int, path string, url string, password string) (string, error)
 	FileShow(id int, path string, url string, password string) (string, error)
 }

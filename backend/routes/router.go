@@ -59,6 +59,10 @@ func SetupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			webshells.GET("/BaseInfo/:id", webshellHandler.BaseInfo)
 			webshells.POST("/ExecCommand/:id", webshellHandler.ExecCommand)
 			webshells.POST("/ExecCode/:id", webshellHandler.ExecCode)
+			webshells.POST("/ExecSql/:id", webshellHandler.ExecSql)
+
+			webshells.POST("/FileZip/:id", webshellHandler.FileZip)
+			webshells.POST("/FileUnZip/:id", webshellHandler.FileUnZip)
 
 			webshells.POST("/FileList/:id", webshellHandler.FileList)
 			webshells.POST("/FileShow/:id", webshellHandler.FileShow)

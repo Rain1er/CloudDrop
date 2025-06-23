@@ -1,11 +1,7 @@
 error_reporting(0);
-header('Content-Type: text/html; charset=UTF-8');
-
-
 
 function main($path = "",$newName="")
 {
-	
 	$dlen = strlen($path);
 	$cdlen = $dlen - strrpos($path,"/");
 	$pdn = substr($path,0,-$cdlen);
