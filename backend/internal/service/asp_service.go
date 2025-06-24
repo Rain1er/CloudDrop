@@ -2,6 +2,9 @@ package service
 
 import (
 	"clouddrop/pkg/util"
+	"fmt"
+	"log"
+	"os"
 	"strings"
 )
 
@@ -12,7 +15,31 @@ func (s *AspShell) GetShellType() string {
 }
 
 func (s *AspShell) FreshSession(id int, url string, password string) (string, error) {
-	return "", nil
+	if AspSessions == nil {
+		AspSessions = make(map[int]string)
+	}
+	code, err := os.ReadFile("./pkg/api/asp/Check.asp")
+	code = fmt.Append(code, "\nmain()")
+
+	if err != nil {
+		return "", err
+	}
+	encode := util.Encrypt(string(code), password)
+	AspSessions[id], err = util.PostRequestWithoutSession(url, password, encode)
+	if err != nil {
+		return "", err
+	}
+
+	session := NetSessions[id] // if key not exist, it returns "" , bcz type is string
+	log.Println("当前ASPSESSIONID " + session)
+
+	enResult, err := util.PostRequest(url, password, encode, session)
+	if err != nil {
+		return "", err
+	}
+	res := util.Decrypt(enResult, password)
+	return res, nil
+
 }
 
 // BaseInfo

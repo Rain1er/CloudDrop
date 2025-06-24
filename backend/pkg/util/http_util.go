@@ -61,7 +61,11 @@ func PostRequest(shellURL string, password string, code string, session string) 
 	req.Header.Set("User-Agent", GenerateRandomUserAgent())
 	req.Header.Set("Content-Type", "application/json")
 	if session != "" {
+		// Todo 这里需要区分type，添加不同的请求头
 		req.Header.Add("Cookie", "PHPSESSID="+session)
+		req.Header.Add("Cookie", "JSESSIONID="+session)
+		req.Header.Add("Cookie", "ASP.NET_SessionId="+session)
+		req.Header.Add("Cookie", "ASPSESSIONID="+session)
 	}
 	// Send the request
 	client := &http.Client{}
@@ -101,7 +105,14 @@ func PostRequestWithoutSession(shellURL string, password string, code string) (s
 
 	// Extract PHPSESSID from cookies Todo 增加其他类型的session
 	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "PHPSESSID" {
+		switch cookie.Name {
+		case "PHPSESSID": // PHP session
+			return cookie.Value, nil
+		case "JSESSIONID": // JSP/Java session
+			return cookie.Value, nil
+		case "ASP.NET_SessionId": // ASP.NET session
+			return cookie.Value, nil
+		case "ASPSESSIONID": // Classic ASP session
 			return cookie.Value, nil
 		}
 	}
@@ -109,7 +120,7 @@ func PostRequestWithoutSession(shellURL string, password string, code string) (s
 	return "", nil
 }
 
-func HookPost(url, password, code, PhpSessions string) (string, error) {
+func HookPost(url, password, code, Sessions string) (string, error) {
 
 	// Convert password to int (assuming it represents a timestamp)
 	var timestampValue int
@@ -121,7 +132,7 @@ func HookPost(url, password, code, PhpSessions string) (string, error) {
 
 	// 加密code发送请求
 	enCode := Encrypt(code, dynamicPassword)
-	enResult, err := PostRequest(url, dynamicPassword, enCode, PhpSessions)
+	enResult, err := PostRequest(url, dynamicPassword, enCode, Sessions)
 	if err != nil {
 		return "", err
 	}

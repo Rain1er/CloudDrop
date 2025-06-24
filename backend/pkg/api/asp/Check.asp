@@ -1,10 +1,10 @@
 Function Encrypt(data)
-key=Session("k")
-size=len(data)
-For i=1 To size
-encryptResult=encryptResult&chrb(asc(mid(data,i,1)) Xor Asc(Mid(key,(i and 15)+1,1)))
-Next
-Encrypt=encryptResult
+  key=Session("k")
+  size=len(data)
+  For i=1 To size
+  encryptResult=encryptResult&chrb(asc(mid(data,i,1)) Xor Asc(Mid(key,(i and 15)+1,1)))
+  Next
+  Encrypt=encryptResult
 End Function
 
 Function Stream_StringToBinary(Text)
@@ -24,17 +24,17 @@ Function Stream_StringToBinary(Text)
 End Function
 
 Function Base64Encode(sText)
-    Dim oXML, oNode
-    Set oXML = CreateObject("Msxml2.DOMDocument.3.0")
-    Set oNode = oXML.CreateElement("base64")
-    oNode.dataType = "bin.base64"
-    oNode.nodeTypedValue =Stream_StringToBinary(sText)
-    If Mid(oNode.text,1,4)="77u/" Then
-    oNode.text=Mid(oNode.text,5)
-    End If
-    Base64Encode = Replace(oNode.text, vbLf, "")
-    Set oNode = Nothing
-    Set oXML = Nothing
+  Dim oXML, oNode
+  Set oXML = CreateObject("Msxml2.DOMDocument.3.0")
+  Set oNode = oXML.CreateElement("base64")
+  oNode.dataType = "bin.base64"
+  oNode.nodeTypedValue =Stream_StringToBinary(sText)
+  If Mid(oNode.text,1,4)="77u/" Then
+  oNode.text=Mid(oNode.text,5)
+  End If
+  Base64Encode = Replace(oNode.text, vbLf, "")
+  Set oNode = Nothing
+  Set oXML = Nothing
 End Function
 
 Sub main()

