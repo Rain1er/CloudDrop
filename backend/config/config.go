@@ -3,6 +3,7 @@ package config
 import (
 	"math/rand"
 	"os"
+	"time"
 )
 
 type Config struct {
@@ -50,11 +51,14 @@ func getEnv(key, defaultValue string) string {
 }
 
 func getJwtSecret() (jwtSecret string) {
+	// Create a new random generator
+	r := rand.New(rand.NewSource(time.Now().UnixNano())) // 需要设置随机数种子，否则密钥可能会被爆破
+
 	// Generate a random string for JWT secret
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, 32)
 	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+		b[i] = letters[r.Intn(len(letters))]
 	}
 	jwtSecret = string(b)
 	return jwtSecret
