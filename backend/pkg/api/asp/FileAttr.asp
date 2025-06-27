@@ -2,7 +2,7 @@ Function Encrypt(data)
 key=Session("k")
 size=len(data)
 For i=1 To size
-encryptResult=encryptResult&chrb(asc(mid(data,i,1)) Xor Asc(Mid(key,(i and 15)+1,1)))
+encryptResult=encryptResult&chrb(asc(mid(data,i,1)) Xor Asc(Mid(key,(i and 15)+5,1)))
 Next
 Encrypt=encryptResult
 End Function

