@@ -29,7 +29,7 @@ func (s *AspShell) FreshSession(id int, url string, password string) (string, er
 		return "", err
 	}
 
-	session := NetSessions[id] // if key not exist, it returns "" , bcz type is string
+	session := AspSessions[id] // if key not exist, it returns "" , bcz type is string
 	log.Println("当前ASPSESSIONID " + session)
 
 	enResult, err := util.PostRequest(url, password, encode, session)
@@ -56,13 +56,13 @@ func (s *AspShell) BaseInfo(id int, url string, password string) (string, error)
 }
 
 func (s *AspShell) ExecCommand(id int, command string, url string, password string) (string, error) {
-	code, err := os.ReadFile("./pkg/api/asp/OS.php")
+	code, err := os.ReadFile("./pkg/api/asp/OS.asp")
 	if err != nil {
 		return "", err
 	}
 	code = fmt.Append(code, "\ncall main()")
 
-	osType, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	osType, err := util.HookPost(url, password, string(code), AspSessions[id])
 	if err != nil {
 		return "", err
 	}

@@ -16,14 +16,14 @@ func (s *JavaShell) GetShellType() string {
 
 func (s *JavaShell) FreshSession(id int, url string, password string) (string, error) {
 	if JavaSessions == nil {
-		NetSessions = make(map[int]string)
+		JavaSessions = make(map[int]string)
 	}
 	code, err := os.ReadFile("./pkg/api/java/Check.class")
 	if err != nil {
 		return "", err
 	}
 	encode := util.Encrypt(string(code), password)
-	NetSessions[id], err = util.PostRequestWithoutSession(url, password, encode)
+	JavaSessions[id], err = util.PostRequestWithoutSession(url, password, encode)
 	if err != nil {
 		return "", err
 	}
