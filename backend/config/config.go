@@ -1,6 +1,7 @@
 package config
 
 import (
+	"math/rand"
 	"os"
 )
 
@@ -25,6 +26,7 @@ type JWTConfig struct {
 }
 
 func New() *Config {
+
 	return &Config{
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8989"),
@@ -34,8 +36,8 @@ func New() *Config {
 			DSN: getEnv("DATABASE_DSN", "clouddrop.db"),
 		},
 		JWT: JWTConfig{
-			Secret: getEnv("JWT_SECRET", "clouddrop-secret-key"), // 在start.sh中设置了随机密钥
-			Expire: 24,                                           // 24小时过期
+			Secret: getJwtSecret(),
+			Expire: 24, // 24小时过期
 		},
 	}
 }
@@ -45,4 +47,15 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func getJwtSecret() (jwtSecret string) {
+	// Generate a random string for JWT secret
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, 32)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	jwtSecret = string(b)
+	return jwtSecret
 }
