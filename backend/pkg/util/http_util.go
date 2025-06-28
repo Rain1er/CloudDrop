@@ -131,7 +131,7 @@ func HookPost(url, password, code, Sessions string) (string, error) {
 	dynamicPassword := strconv.Itoa(timestampValue + rand.Intn(2592000)) // 动态密钥
 
 	// 加密code发送请求
-	enCode := Encrypt(code, dynamicPassword)
+	enCode := Encrypt(code, dynamicPassword) // 这里对code的处理底层仍然是字节，不会导致丢失问题
 	enResult, err := PostRequest(url, dynamicPassword, enCode, Sessions)
 	if err != nil {
 		return "", err

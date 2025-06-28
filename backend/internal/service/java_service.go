@@ -45,7 +45,7 @@ func (s *JavaShell) BaseInfo(id int, url string, password string) (string, error
 	if err != nil {
 		return "", nil
 	}
-	result, err := util.PostRequest(url, password, string(code), JavaSessions[id])
+	result, err := util.HookPost(url, password, string(code), JavaSessions[id])
 	if err != nil {
 		return "", err
 	}
