@@ -98,10 +98,12 @@ function main($driver, $host, $port, $user, $pass, $database, $sql, $option, $en
         $sqlType = strtoupper(trim(explode(' ', $sql)[0]));
         $result = [];
         
+        // 查询操作
         if (in_array($sqlType, ['SELECT', 'SHOW', 'DESCRIBE', 'EXPLAIN'])) {
             $result['data'] = $stmt->fetchAll();
             $result['rows'] = count($result['data']);
         } else {
+            // 增删改操作
             $result['affected'] = $stmt->rowCount();
             if ($sqlType === 'INSERT') {
                 $result['insert_id'] = $pdo->lastInsertId();

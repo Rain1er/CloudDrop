@@ -79,6 +79,7 @@ func (s *JavaShell) ExecCommand(id int, command string, url string, password str
 }
 
 func (s *JavaShell) ExecCode(id int, code string, url string, password string) (string, error) {
+	// todo 这里接收前端传过来的class字节码执行
 	return "", nil
 }
 

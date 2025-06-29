@@ -76,6 +76,7 @@ func (s *CSharpShell) ExecCommand(id int, command string, url string, password s
 }
 
 func (s *CSharpShell) ExecCode(id int, code string, url string, password string) (string, error) {
+	// todo 这里接收前端传过来的class字节码执行
 	return "", nil
 }
 
