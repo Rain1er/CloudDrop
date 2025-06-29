@@ -30,7 +30,7 @@ func (s *JavaShell) FreshSession(id int, url string, password string) (string, e
 	session := JavaSessions[id]
 	log.Println("当前JSESSIONID " + session)
 
-	enResult, err := util.PostRequest(url, password, encode, session)
+	enResult, err := util.PostRequest(url, password, encode, session, s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -45,7 +45,7 @@ func (s *JavaShell) BaseInfo(id int, url string, password string) (string, error
 	if err != nil {
 		return "", nil
 	}
-	result, err := util.HookPost(url, password, string(code), JavaSessions[id])
+	result, err := util.HookPost(url, password, string(code), JavaSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -58,7 +58,7 @@ func (s *JavaShell) ExecCommand(id int, command string, url string, password str
 	if err != nil {
 		return "", nil
 	}
-	osType, err := util.HookPost(url, password, string(code), JavaSessions[id])
+	osType, err := util.HookPost(url, password, string(code), JavaSessions[id], s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -71,7 +71,7 @@ func (s *JavaShell) ExecCommand(id int, command string, url string, password str
 
 	code, _ = os.ReadFile("./pkg/api/java/CMD.class")
 	code = fmt.Appendf(code, "_____cmdPath-%s,exit-true,cmd-%s", cmdPath, command)
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -94,7 +94,7 @@ func (s *JavaShell) ExecSql(id int, driver, host, port, user, pass, database, sq
 			driver, host, port, user, pass, database, sql, option, encoding)
 	}
 
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -104,7 +104,7 @@ func (s *JavaShell) ExecSql(id int, driver, host, port, user, pass, database, sq
 func (s *JavaShell) FileZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/java/FileZip.class")
 	code = fmt.Appendf(code, "_____srcPath-%s,toPath-%s", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -114,7 +114,7 @@ func (s *JavaShell) FileZip(id int, srcPath string, toPath string, url string, p
 func (s *JavaShell) FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/java/FileUnZip.class")
 	code = fmt.Appendf(code, "_____srcPath-%s,toPath-%s", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -125,7 +125,7 @@ func (s *JavaShell) FileUnZip(id int, srcPath string, toPath string, url string,
 func (s *JavaShell) FileList(id int, path string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/java/FileList.class")
 	code = fmt.Appendf(code, "_____path-%s", path)
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -135,7 +135,7 @@ func (s *JavaShell) FileList(id int, path string, url string, password string) (
 func (s *JavaShell) FileShow(id int, path string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/java/FileShow.class")
 	code = fmt.Appendf(code, "_____path-%s", path)
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}

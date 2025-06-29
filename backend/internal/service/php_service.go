@@ -51,7 +51,7 @@ func (s *PHPShell) BaseInfo(id int, url string, password string) (string, error)
 	code, _ := os.ReadFile("./pkg/api/php/BaseInfo.php")
 	code = fmt.Append(code, "\nmain();") // add main() to call
 
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -67,7 +67,7 @@ func (s *PHPShell) ExecCommand(id int, command string, url string, password stri
 	code, _ := os.ReadFile("./pkg/api/php/OS.php")
 	code = fmt.Append(code, "\nmain();")
 
-	osType, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	osType, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -83,7 +83,7 @@ func (s *PHPShell) ExecCommand(id int, command string, url string, password stri
 	code, _ = os.ReadFile("./pkg/api/php/CMD.php")
 	code = fmt.Appendf(code, "\nmain(\"%s\",\"true\",\"%s\");", cmdPath, command)
 
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -110,7 +110,7 @@ function encrypt($data, $key) {
 	}
 	return base64_encode($data);
 }`, code)
-	res, err := util.HookPost(url, password, shellcode, PhpSessions[id])
+	res, err := util.HookPost(url, password, shellcode, PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -130,7 +130,7 @@ func (s *PHPShell) ExecSql(id int, driver, host, port, user, pass, database, sql
 			"\nmain(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, \"%s\",);", driver, host, port, user, pass, database, sql, option, encoding)
 	}
 
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -140,7 +140,7 @@ func (s *PHPShell) ExecSql(id int, driver, host, port, user, pass, database, sql
 func (s *PHPShell) FileZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/php/FileZip.php")
 	code = fmt.Appendf(code, "\nmain(\"%s\", \"%s\");", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -150,7 +150,7 @@ func (s *PHPShell) FileZip(id int, srcPath string, toPath string, url string, pa
 func (s *PHPShell) FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/php/FileUnZip.php")
 	code = fmt.Appendf(code, "\nmain(\"%s\", \"%s\");", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -162,7 +162,7 @@ func (s *PHPShell) FileList(id int, path string, url string, password string) (s
 	code, _ := os.ReadFile("./pkg/api/php/FileList.php")
 	code = fmt.Appendf(code, "\nmain(\"%s\");", path)
 
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -173,7 +173,7 @@ func (s *PHPShell) FileShow(id int, path string, url string, password string) (s
 	code, _ := os.ReadFile("./pkg/api/php/FileShow.php")
 	code = fmt.Appendf(code, "\nmain(\"%s\");", path)
 
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id])
+	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}

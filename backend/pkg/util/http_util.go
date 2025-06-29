@@ -48,8 +48,7 @@ func GenerateRandomUserAgent() string {
 	return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
 }
 
-func PostRequest(shellURL string, password string, code string, session string) (string, error) {
-
+func PostRequest(shellURL string, password string, code string, session string, args ...any) (string, error) {
 	// Directly construct JSON payload
 	jsonStr := fmt.Sprintf(`{"timezone":%s,"sign":"%s"}`, password, code)
 
@@ -61,11 +60,19 @@ func PostRequest(shellURL string, password string, code string, session string) 
 	req.Header.Set("User-Agent", GenerateRandomUserAgent())
 	req.Header.Set("Content-Type", "application/json")
 	if session != "" {
-		// Todo 这里需要区分type，添加不同的请求头
-		req.Header.Add("Cookie", "PHPSESSID="+session)
-		req.Header.Add("Cookie", "JSESSIONID="+session)
-		req.Header.Add("Cookie", "ASP.NET_SessionId="+session)
-		req.Header.Add("Cookie", "ASPSESSIONID="+session)
+		// 因为go不支持可选参数，利用可变参数传入shell类型
+		for _, arg := range args {
+			switch arg {
+			case "php":
+				req.Header.Add("Cookie", "PHPSESSID="+session)
+			case "asp":
+				req.Header.Add("Cookie", "ASPSESSIONID="+session)
+			case "java":
+				req.Header.Add("Cookie", "JSESSIONID="+session)
+			case "net":
+				req.Header.Add("Cookie", "ASP.NET_SessionId="+session)
+			}
+		}
 	}
 	// Send the request
 	client := &http.Client{}
@@ -120,7 +127,7 @@ func PostRequestWithoutSession(shellURL string, password string, code string) (s
 	return "", nil
 }
 
-func HookPost(url, password, code, Sessions string) (string, error) {
+func HookPost(url, password, code, Sessions, shellType string) (string, error) {
 
 	// Convert password to int (assuming it represents a timestamp)
 	var timestampValue int
@@ -132,7 +139,7 @@ func HookPost(url, password, code, Sessions string) (string, error) {
 
 	// 加密code发送请求
 	enCode := Encrypt(code, dynamicPassword) // 这里对code的处理底层仍然是字节，不会导致丢失问题
-	enResult, err := PostRequest(url, dynamicPassword, enCode, Sessions)
+	enResult, err := PostRequest(url, dynamicPassword, enCode, Sessions, shellType)
 	if err != nil {
 		return "", err
 	}
