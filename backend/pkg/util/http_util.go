@@ -127,15 +127,13 @@ func PostRequestWithoutSession(shellURL string, password string, code string) (s
 	return "", nil
 }
 
-func HookPost(url, password, code, Sessions, shellType string) (string, error) {
-
-	// Convert password to int (assuming it represents a timestamp)
-	var timestampValue int
-	if _, err := fmt.Sscanf(password, "%d", &timestampValue); err != nil {
-		return "", fmt.Errorf("password must be a valid integer: %v", err)
-	}
+func GeneratePasswordSeed() string {
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	dynamicPassword := strconv.Itoa(timestampValue + rand.Intn(2592000)) // 动态密钥
+	return strconv.Itoa(int(time.Now().Unix()) + rand.Intn(2592000))
+}
+
+func HookPost(url, password, code, Sessions, shellType string) (string, error) {
+	dynamicPassword := GeneratePasswordSeed()
 
 	// 加密code发送请求
 	enCode := Encrypt(code, dynamicPassword) // 这里对code的处理底层仍然是字节，不会导致丢失问题

@@ -1,3 +1,6 @@
 .DS_Store
 clouddrop
 .idea/
+.codex/
+frontend/node_modules/
+frontend/dist/

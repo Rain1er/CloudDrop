@@ -28,7 +28,7 @@ func NewWebShellHandler(cfg *config.Config, db *gorm.DB) *WebShellHandler {
 type WebShellRequest struct {
 	Name     string `json:"name" binding:"required"`
 	URL      string `json:"url" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Password string `json:"password"`
 	Type     string `json:"type" binding:"required"`
 	Encode   string `json:"encode" binding:"required"`
 	Note     string `json:"note"`
@@ -49,6 +49,42 @@ func (h *WebShellHandler) GetType(shellType string) service.Shell {
 	}
 
 	return shell
+}
+
+func (h *WebShellHandler) loadShell(c *gin.Context, id string) (int, model.Web_shells, service.Shell, bool) {
+	intID, err := strconv.Atoi(id)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid WebShell id"})
+		return 0, model.Web_shells{}, nil, false
+	}
+
+	var webshell model.Web_shells
+	if result := h.db.Where("id = ?", id).First(&webshell); result.Error != nil {
+		c.JSON(404, gin.H{"error": "WebShell not found"})
+		return 0, model.Web_shells{}, nil, false
+	}
+
+	shellHandler := h.GetType(webshell.Type)
+	if shellHandler == nil {
+		c.JSON(400, gin.H{"error": "Unsupported WebShell type", "message": webshell.Type})
+		return 0, model.Web_shells{}, nil, false
+	}
+
+	return intID, webshell, shellHandler, true
+}
+
+func (h *WebShellHandler) markWebShellStatus(id int, status string) {
+	h.db.Model(&model.Web_shells{}).Where("id = ?", id).Update("status", status)
+}
+
+func (h *WebShellHandler) freshSessionForOperation(id int, webshell model.Web_shells, shellHandler service.Shell) error {
+	_, err := shellHandler.FreshSession(id, webshell.URL, webshell.Password)
+	if err != nil {
+		h.markWebShellStatus(id, "dead")
+		return err
+	}
+	h.markWebShellStatus(id, "alive")
+	return nil
 }
 
 // List 获取webshell列表
@@ -165,65 +201,62 @@ func (h *WebShellHandler) Delete(c *gin.Context) {
 // 对于打开的webshell，每15分钟刷新一次session，避免session过期。可以使用前端Ajax请求实现
 // 具体来说，第一次打开会话获取一次session，如果用户停留页面，那么每15分钟通过ajax请求刷新一次session
 func (h *WebShellHandler) Test(c *gin.Context) {
-	// 将webshell id与session进行绑定，放到全局变量中
-	// 1. 请求一次webshell，除了获取session之外什么也不干
 	id := c.Param("id")
-	intID, _ := strconv.Atoi(id)
-
-	var webshell model.Web_shells
-	if result := h.db.Where("id = ?", id).First(&webshell); result.Error != nil {
-		c.JSON(404, gin.H{"error": "WebShell not found"})
+	intID, webshell, shellHandler, ok := h.loadShell(c, id)
+	if !ok {
 		return
 	}
-	shellHandler := h.GetType(webshell.Type)
-	res, err := shellHandler.FreshSession(intID, webshell.URL, webshell.Password)
 
+	res, err := shellHandler.FreshSession(intID, webshell.URL, webshell.Password)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to Test", "message": err.Error()})
+		h.markWebShellStatus(intID, "dead")
+		c.JSON(500, gin.H{"error": "Failed to Test", "message": err.Error(), "status": "dead"})
+		return
 	}
 
-	c.JSON(200, gin.H{"info": res})
+	h.markWebShellStatus(intID, "alive")
+	c.JSON(200, gin.H{"info": res, "status": "alive"})
 }
 
-// BatchTest 批量测试WebShell连接
 func (h *WebShellHandler) BatchTest(c *gin.Context) {
-	// Get all WebShells from database
 	var webshells []model.Web_shells
 	if result := h.db.Find(&webshells); result.Error != nil {
 		c.JSON(500, gin.H{"error": "Failed to retrieve WebShells", "message": result.Error.Error()})
 		return
 	}
 
-	// Test each WebShell and collect results
 	res := make(map[int]bool)
-	// for _, webshell := range webshells {
-	// 	// Use the appropriate shell handler based on type
-	// 	shellHandler := h.GetType(webshell.Type)
-	// 	// Test connection and store result
-	// 	_, err := shellHandler.BaseInfo(webshell.URL, webshell.Password)
-	// 	results[webshell.ID] = err == nil
-	// }
+	for _, webshell := range webshells {
+		shellHandler := h.GetType(webshell.Type)
+		if shellHandler == nil {
+			res[webshell.ID] = false
+			h.markWebShellStatus(webshell.ID, "unsupported")
+			continue
+		}
+		_, err := shellHandler.FreshSession(webshell.ID, webshell.URL, webshell.Password)
+		alive := err == nil
+		res[webshell.ID] = alive
+		if alive {
+			h.markWebShellStatus(webshell.ID, "alive")
+		} else {
+			h.markWebShellStatus(webshell.ID, "dead")
+		}
+	}
 
 	c.JSON(200, gin.H{"info": res})
 }
 
-// BaseInfo 获取系统信息
 func (h *WebShellHandler) BaseInfo(c *gin.Context) {
-	// 拿到webshell信息
-	var info string
-	var err error
-	var webshell model.Web_shells
-	// 从前端请求的ID查询数据库，获取WebShell的URL和密码
 	id := c.Param("id")
-	intID, _ := strconv.Atoi(id)
-	if result := h.db.Where("id = ?", id).First(&webshell); result.Error != nil {
-		c.JSON(404, gin.H{"error": "WebShell not found"})
+	intID, webshell, shellHandler, ok := h.loadShell(c, id)
+	if !ok {
 		return
 	}
-
-	// 使用接口的多态特性，调用服务层
-	shellHandler := h.GetType(webshell.Type)
-	info, err = shellHandler.BaseInfo(intID, webshell.URL, webshell.Password)
+	if err := h.freshSessionForOperation(intID, webshell, shellHandler); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to refresh session", "message": err.Error()})
+		return
+	}
+	info, err := shellHandler.BaseInfo(intID, webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to get current directory", "message": err.Error()})
 		return
@@ -232,20 +265,17 @@ func (h *WebShellHandler) BaseInfo(c *gin.Context) {
 	c.JSON(200, gin.H{"info": info})
 }
 
-// ExecCommand 执行客户端发送的命令
-// Todo 遇到黑名单命令执行函数，自动寻找遗漏的地方，配合用户自定义代码执行功能使用
 func (h *WebShellHandler) ExecCommand(c *gin.Context) {
 	id := c.Param("id")
-	intID, _ := strconv.Atoi(id)
 	command := c.PostForm("command")
-
-	var webshell model.Web_shells
-	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
-		c.JSON(404, gin.H{"error": "WebShell not found"})
+	intID, webshell, shellHandler, ok := h.loadShell(c, id)
+	if !ok {
 		return
 	}
-	shellHandler := h.GetType(webshell.Type)
-	// Todo 单引号对于win可能会出错，需要在CMD.php中处理引号问题。直接在shellcode中用双引号包裹命令，已完成。
+	if err := h.freshSessionForOperation(intID, webshell, shellHandler); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to refresh session", "message": err.Error()})
+		return
+	}
 	info, err := shellHandler.ExecCommand(intID, command, webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to ExecCommand", "message": err.Error()})
@@ -254,18 +284,17 @@ func (h *WebShellHandler) ExecCommand(c *gin.Context) {
 	c.JSON(200, gin.H{"info": info})
 }
 
-// ExecCode executes custom code sent by the client
 func (h *WebShellHandler) ExecCode(c *gin.Context) {
 	id := c.Param("id")
-	intID, _ := strconv.Atoi(id)
 	code := c.PostForm("code")
-
-	var webshell model.Web_shells
-	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
-		c.JSON(404, gin.H{"error": "WebShell not found"})
+	intID, webshell, shellHandler, ok := h.loadShell(c, id)
+	if !ok {
 		return
 	}
-	shellHandler := h.GetType(webshell.Type)
+	if err := h.freshSessionForOperation(intID, webshell, shellHandler); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to refresh session", "message": err.Error()})
+		return
+	}
 	info, err := shellHandler.ExecCode(intID, code, webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to ExecCode", "message": err.Error()})
@@ -274,46 +303,46 @@ func (h *WebShellHandler) ExecCode(c *gin.Context) {
 	c.JSON(200, gin.H{"info": info})
 }
 
-// ExecSql executes custom sql sent by the client
 func (h *WebShellHandler) ExecSql(c *gin.Context) {
 	id := c.Param("id")
-	intID, _ := strconv.Atoi(id)
 	driver := c.PostForm("driver")
 	host := c.PostForm("host")
 	port := c.PostForm("port")
 	user := c.PostForm("user")
 	pass := c.PostForm("pass")
-	database := c.PostForm("database") // if not sent, it will return all dbnames
+	database := c.PostForm("database")
 	sql := c.PostForm("sql")
-	option := c.PostForm("option")     // 传入[PDO::ATTR_PERSISTENT => true]，复用连接池
-	encoding := c.PostForm("encoding") // utf8mb4
+	option := c.PostForm("option")
+	encoding := c.PostForm("encoding")
 
-	var webshell model.Web_shells
-	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
-		c.JSON(404, gin.H{"error": "WebShell not found"})
+	intID, webshell, shellHandler, ok := h.loadShell(c, id)
+	if !ok {
 		return
 	}
-
-	shellHandler := h.GetType(webshell.Type)
+	if err := h.freshSessionForOperation(intID, webshell, shellHandler); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to refresh session", "message": err.Error()})
+		return
+	}
 	info, err := shellHandler.ExecSql(intID, driver, host, port, user, pass, database, sql, option, encoding, webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to ExecSql", "message": err.Error()})
+		return
 	}
 
 	c.JSON(200, gin.H{"info": info})
 }
 
-// FileList 列出目录下的文件
 func (h *WebShellHandler) FileList(c *gin.Context) {
 	id := c.Param("id")
-	intID, _ := strconv.Atoi(id)
 	path := c.PostForm("path")
-	var webshell model.Web_shells
-	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
-		c.JSON(404, gin.H{"error": "WebShell not found"})
+	intID, webshell, shellHandler, ok := h.loadShell(c, id)
+	if !ok {
 		return
 	}
-	shellHandler := h.GetType(webshell.Type)
+	if err := h.freshSessionForOperation(intID, webshell, shellHandler); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to refresh session", "message": err.Error()})
+		return
+	}
 	files, err := shellHandler.FileList(intID, path, webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to all files in the target directory", "message": err.Error()})
@@ -324,14 +353,15 @@ func (h *WebShellHandler) FileList(c *gin.Context) {
 
 func (h *WebShellHandler) FileShow(c *gin.Context) {
 	id := c.Param("id")
-	intID, _ := strconv.Atoi(id)
 	path := c.PostForm("path")
-	var webshell model.Web_shells
-	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
-		c.JSON(404, gin.H{"error": "WebShell not found"})
+	intID, webshell, shellHandler, ok := h.loadShell(c, id)
+	if !ok {
 		return
 	}
-	shellHandler := h.GetType(webshell.Type)
+	if err := h.freshSessionForOperation(intID, webshell, shellHandler); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to refresh session", "message": err.Error()})
+		return
+	}
 	content, err := shellHandler.FileShow(intID, path, webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to retrive target file content", "message": err.Error()})
@@ -341,19 +371,17 @@ func (h *WebShellHandler) FileShow(c *gin.Context) {
 }
 
 func (h *WebShellHandler) FileZip(c *gin.Context) {
-	// step 1 retrive param and query
 	id := c.Param("id")
-	intID, _ := strconv.Atoi(id)
 	srcPath := c.PostForm("srcPath")
 	toPath := c.PostForm("toPath")
-	var webshell model.Web_shells
-	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
-		c.JSON(404, gin.H{"error": "WebShell not found"})
+	intID, webshell, shellHandler, ok := h.loadShell(c, id)
+	if !ok {
 		return
 	}
-
-	// step 2 Specify actions
-	shellHandler := h.GetType(webshell.Type)
+	if err := h.freshSessionForOperation(intID, webshell, shellHandler); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to refresh session", "message": err.Error()})
+		return
+	}
 	content, err := shellHandler.FileZip(intID, srcPath, toPath, webshell.URL, webshell.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to zip target file content", "message": err.Error()})
@@ -361,23 +389,22 @@ func (h *WebShellHandler) FileZip(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{"info": content})
 }
+
 func (h *WebShellHandler) FileUnZip(c *gin.Context) {
-	// step 1 retrive param and query
 	id := c.Param("id")
-	intID, _ := strconv.Atoi(id)
 	srcPath := c.PostForm("srcPath")
 	toPath := c.PostForm("toPath")
-	var webshell model.Web_shells
-	if res := h.db.Where("id = ?", id).First(&webshell); res.Error != nil {
-		c.JSON(404, gin.H{"error": "WebShell not found"})
+	intID, webshell, shellHandler, ok := h.loadShell(c, id)
+	if !ok {
 		return
 	}
-
-	// step 2 Specify actions
-	shellHandler := h.GetType(webshell.Type)
+	if err := h.freshSessionForOperation(intID, webshell, shellHandler); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to refresh session", "message": err.Error()})
+		return
+	}
 	content, err := shellHandler.FileUnZip(intID, srcPath, toPath, webshell.URL, webshell.Password)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to zip target file content", "message": err.Error()})
+		c.JSON(500, gin.H{"error": "Failed to unzip target file content", "message": err.Error()})
 		return
 	}
 	c.JSON(200, gin.H{"info": content})

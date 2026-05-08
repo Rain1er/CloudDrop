@@ -17,6 +17,7 @@ func (s *AspShell) FreshSession(id int, url string, password string) (string, er
 	if AspSessions == nil {
 		AspSessions = make(map[int]string)
 	}
+	password = util.GeneratePasswordSeed()
 	code, err := os.ReadFile("./pkg/api/asp/Check.asp")
 	code = fmt.Append(code, "\ncall main()")
 
