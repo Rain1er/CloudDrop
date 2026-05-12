@@ -23,7 +23,7 @@ type PHPShell struct{}
 // JavaShell implements Shell interface for Java
 type JavaShell struct{}
 
-// CSharpShell implements Shell interface for C#
+// CSharpShell implements Shell interface for C#/.NET.
 type CSharpShell struct{}
 
 // AspShell implements Shell interface for ASP

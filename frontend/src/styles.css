@@ -318,6 +318,8 @@ td small { display: block; margin-top: 4px; color: var(--muted); }
 .terminal-input input { background: #020617; color: #e2e8f0; border-color: #334155; font-family: 'Fira Code', ui-monospace, monospace; }
 .code-runner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr); gap: 18px; padding: 22px; }
 .code-runner label { display: grid; gap: 8px; color: var(--muted); font-weight: 800; }
+.code-example { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: end; padding: 18px 22px 0; }
+.code-example pre { min-height: 80px !important; }
 .code-editor { font-family: 'Fira Code', ui-monospace, monospace; background: #f8fafc; }
 .file-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; padding: 16px; border-bottom: 1px solid var(--border); background: #f8fafc; }
 .file-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: 620px; }

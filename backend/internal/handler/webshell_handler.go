@@ -5,6 +5,7 @@ import (
 	"clouddrop/internal/model"
 	"clouddrop/internal/service"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,14 +36,15 @@ type WebShellRequest struct {
 }
 
 func (h *WebShellHandler) GetType(shellType string) service.Shell {
-	var shell service.Shell // 声明接口类型的变量
+	var shell service.Shell
+	normalizedType := strings.ToLower(strings.TrimSpace(shellType))
 
-	switch shellType {
+	switch normalizedType {
 	case "php":
 		shell = &service.PHPShell{}
 	case "java":
 		shell = &service.JavaShell{}
-	case "c#":
+	case "c#", "csharp", "net", "c#-net20", "c#-net40", "aspx", "ashx", "asmx":
 		shell = &service.CSharpShell{}
 	case "asp":
 		shell = &service.AspShell{}
